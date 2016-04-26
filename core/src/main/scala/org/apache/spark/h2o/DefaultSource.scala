@@ -26,11 +26,8 @@ import water.DKV
   * Provides access to H2OFrame from pure SQL statements (i.e. for users of the
   * JDBC server).
   */
-class DefaultSource
-  extends RelationProvider
-  with SchemaRelationProvider
-  with CreatableRelationProvider
-  with DataSourceRegister{
+class DefaultSource extends RelationProvider
+    with SchemaRelationProvider with CreatableRelationProvider with DataSourceRegister{
 
   /**
     * Short alias for spark-csv data source.
@@ -76,21 +73,27 @@ class DefaultSource
                                data: DataFrame): BaseRelation = {
     val key = checkKey(parameters)
     val originalFrame = DKV.getGet[H2OFrame](key)
-    implicit val h2oContext = H2OContext.getOrCreate(sqlContext.sparkContext)
-      if(originalFrame!=null){
-        mode match {
-          case SaveMode.Append =>
-            sys.error("Appending to H2O Frame is not supported.")
-          case SaveMode.Overwrite =>
-            DataSourceUtils.overwrite(key, originalFrame, data)
-          case SaveMode.ErrorIfExists =>
-            sys.error(s"Frame with key '$key' already exists.")
-          case SaveMode.Ignore => // do nothing
-        }
+    implicit val h2oContext = {
+      if(H2OContext.get().isEmpty){
+        throw new RuntimeException("H2OContext has to be started in order to save/load data using H2O Data source.")
       }else{
-        // save as H2O Frame
-        h2oContext.asH2OFrame(data,key)
+        H2OContext.get().get
       }
+    }
+    if(originalFrame!=null){
+      mode match {
+        case SaveMode.Append =>
+          sys.error("Appending to H2O Frame is not supported.")
+        case SaveMode.Overwrite =>
+          DataSourceUtils.overwrite(key, originalFrame, data)
+        case SaveMode.ErrorIfExists =>
+          sys.error(s"Frame with key '$key' already exists.")
+        case SaveMode.Ignore => // do nothing
+      }
+    }else{
+      // save as H2O Frame
+      h2oContext.asH2OFrame(data, key)
+    }
 
     createRelation(sqlContext, parameters, data.schema)
   }

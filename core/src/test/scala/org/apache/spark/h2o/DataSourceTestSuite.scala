@@ -19,7 +19,7 @@ package org.apache.spark.h2o
 
 import org.apache.spark.SparkContext
 import org.apache.spark.h2o.util.SharedSparkTestContext
-import org.apache.spark.sql.{SaveMode, SQLContext}
+import org.apache.spark.sql.SaveMode
 import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.junit.JUnitRunner
@@ -33,8 +33,7 @@ class DataSourceTestSuite extends FunSuite with SharedSparkTestContext {
 
   override def createSparkContext: SparkContext = new SparkContext("local[*]", "test-data-sources",
     conf = defaultSparkConf)
-
-
+  
   test("Reading H2OFrame using short variant") {
     val rdd = sc.parallelize(1 to 1000).map( v => IntHolder(Some(v)))
     val h2oFrame:H2OFrame = hc.asH2OFrame(rdd)
@@ -48,7 +47,7 @@ class DataSourceTestSuite extends FunSuite with SharedSparkTestContext {
   test("Reading H2OFrame using key option") {
     val rdd = sc.parallelize(1 to 1000).map( v => IntHolder(Some(v)))
     val h2oFrame:H2OFrame = hc.asH2OFrame(rdd)
-    val df = sqlc.read.format("h2o").option("key",h2oFrame.key.toString).load()
+    val df = sqlc.read.format("h2o").option("key", h2oFrame.key.toString).load()
 
     assert (df.columns.length == h2oFrame.numCols(), "Number of columns should match")
     assert (df.columns.sameElements(h2oFrame.names()),"Column names should match")
@@ -69,6 +68,7 @@ class DataSourceTestSuite extends FunSuite with SharedSparkTestContext {
     val rdd = sc.parallelize(1 to 1000).map( v => IntHolder(Some(v)))
     val df = sqlc.createDataFrame(rdd)
     df.write.h2o("new_key")
+
     val h2oFrame = DKV.getGet[H2OFrame]("new_key")
     assert (df.columns.length == h2oFrame.numCols(), "Number of columns should match")
     assert (df.columns.sameElements(h2oFrame.names()),"Column names should match")

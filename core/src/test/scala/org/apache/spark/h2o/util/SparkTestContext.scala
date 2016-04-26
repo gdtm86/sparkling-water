@@ -21,12 +21,14 @@ import org.apache.spark.sql.SQLContext
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.h2o.H2OContext
 import org.scalatest.{Suite, BeforeAndAfterAll, BeforeAndAfterEach}
-
+import scala.sys.process.Process
 /**
   * Helper trait to simplify initialization and termination of Spark/H2O contexts.
   *
   */
 trait SparkTestContext extends BeforeAndAfterEach with BeforeAndAfterAll { self: Suite =>
+  @transient var cloudProcesses: Seq[Process] = _
+
   @transient var sc: SparkContext = _
   @transient var hc: H2OContext = _
   @transient implicit var sqlc: SQLContext = _

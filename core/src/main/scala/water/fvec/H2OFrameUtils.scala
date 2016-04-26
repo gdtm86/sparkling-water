@@ -16,10 +16,11 @@
 */
 package water.fvec
 
+
 /**
  * This is a simple bridge to access package-private/protected members.
  */
-object FrameUtils {
+trait FrameUtils {
 
   /** @see Frame#preparePartialFrame */
   def preparePartialFrame(fr: Frame, names: Array[String]): Unit = {
@@ -46,3 +47,5 @@ object FrameUtils {
     chks.toArray
   }
 }
+
+object FrameUtils extends FrameUtils
