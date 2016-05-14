@@ -8,6 +8,7 @@ include 'assembly'
 include 'py'
 include 'repl'
 include 'docker'
+include 'genmodel'
 
 // Prefix all projects with sparkling-water name
 rootProject.children.each { it.name = rootProject.name + "-" + it.name }

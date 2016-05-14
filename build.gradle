@@ -35,7 +35,8 @@ ext {
     publishedProjects = [
       project(':sparkling-water-repl'),
       project(':sparkling-water-core'),
-      project(':sparkling-water-examples')
+      project(':sparkling-water-examples'),
+      project(':sparkling-water-genmodel')
     ]
     integTestProjects = [
       project(':sparkling-water-core'),
@@ -49,6 +50,9 @@ ext {
     ]
     pythonProjects = [
       project(':sparkling-water-py')
+    ]
+    javaProjects = [
+      project(':sparkling-water-genmodel')
     ]
 }
 
@@ -87,7 +91,7 @@ configure(subprojects) { project ->
     repositories {
         // Should be enabled only in development mode
         if (h2oBuild == '99999') mavenLocal()
-        
+
         mavenCentral()
 
         maven {
@@ -109,6 +113,10 @@ configure(subprojects) { project ->
     }
     if (project in pythonProjects) {
       apply from: "$rootDir/gradle/python.gradle"
+    }
+    // Configure Java projects
+    if (project in javaProjects) {
+        apply from: "$rootDir/gradle/java.gradle"
     }
 
     // All subprojects needs Spark support
