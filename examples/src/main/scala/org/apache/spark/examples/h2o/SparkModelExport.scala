@@ -42,11 +42,14 @@ object SparkModelExport extends SparkContextSupport  {
     // Build IDF model
     val (hashingTF, idfModel, _) = buildIDFModel(tokens)
 
+    // Implicit converters
     import org.apache.spark.model.SparklingModel._
 
+    // Save both models as POJO
     hashingTF.save()
     idfModel.save()
 
+    // Perform TF and IDF using spark models and save them to compare them later with the POJO model version
     tokens.map { msg =>
       val tf = hashingTF.transform(msg)
       val tfidf = idfModel.transform(tf)
