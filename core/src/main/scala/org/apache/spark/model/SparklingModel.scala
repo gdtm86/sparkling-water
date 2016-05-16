@@ -40,5 +40,5 @@ trait SparklingModel {
 
   def save(): Unit = save("")
 
-  def save(dir: String): Unit = toJava(new SBPrintStream(new FileOutputStream(new File(dir, s"$name.java"))))
+  def save(dir: String): Unit = toJava(new SBPrintStream(new FileOutputStream(Array(dir,s"$name.java").mkString(""))))
 }
