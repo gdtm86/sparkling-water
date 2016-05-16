@@ -26,7 +26,7 @@ object SparkModelExport extends SparkContextSupport  {
   val DATAFILE="smsData.txt"
 
   def main(args: Array[String]) {
-    val conf: SparkConf = configure("Sparkling Water Meetup: Ham or Spam (spam text messages detector)")
+    val conf: SparkConf = configure("Spark TF and IDF model export example.")
     // Create SparkContext to execute application on Spark cluster
     val sc = new SparkContext(conf)
     // Register input file as Spark file

@@ -17,7 +17,7 @@
 
 package org.apache.spark.model
 
-import java.io.FileOutputStream
+import java.io.{File, FileOutputStream}
 
 import org.apache.spark.mllib.feature.{HashingTF, IDFModel}
 import water.util.SBPrintStream
@@ -38,7 +38,7 @@ trait SparklingModel {
 
   def toJava(sb: SBPrintStream): SBPrintStream
 
-  def save(): Unit = save(s"$name.java")
+  def save(): Unit = save("")
 
-  def save(file: String): Unit = toJava(new SBPrintStream(new FileOutputStream(file)))
+  def save(dir: String): Unit = toJava(new SBPrintStream(new FileOutputStream(new File(dir, s"$name.java"))))
 }

@@ -30,49 +30,38 @@ class SparklingIDFModel(val sparkModel: IDFModel) extends SparklingModel {
 
     val fileCtx: CodeGeneratorPipeline = new CodeGeneratorPipeline
 
-    sb.p("import water.*;").nl
-
-    sb.p("public class ").p(name).p(" {").nl.ii(1)
-
-    sb.nl()
-
+    /**/ sb.p("import water.*;").nl.nl
+    /**/
+    /**/ sb.p(s"public class $name {").nl.nl
+    /**/
     sparkModel.idf match {
       case DenseVector(_) =>
-        sb.p("  private Vector idf = ").p(s"new DenseVector(${newDoubleArrString(sparkModel.idf.toArray)});").nl()
+        /*  */ sb.i(1).p(s"private Vector idf = new DenseVector(${newDoubleArrString(sparkModel.idf.toArray)});").nl.nl
       case SparseVector(_) => {
         val sparse = sparkModel.idf.asInstanceOf[SparseVector]
-        sb.p("  private Vector idf = ")
-          .p(s"""new SparseVector(
-                |${sparse.size},
-                |${newIntArrString(sparse.indices)},
-                |${newDoubleArrString(sparse.values)}
-                |);
-                |""".stripMargin
-          )
-          .nl()
+        /*  */ sb.i(1).p("private Vector idf = new SparseVector(").nl
+        /*  */ sb.i(2).p(s"${sparse.size},").nl
+        /*  */ sb.i(2).p(s"${newIntArrString(sparse.indices)},").nl
+        /*  */ sb.i(2).p(s"${newDoubleArrString(sparse.values)}").nl
+        /*  */ sb.i(1).p(");").nl.nl
       }
     }
-
-    sb.p(
-      """
-        |  public Vector transform(Vector inp) {
-        |    Vector v = inp.clone();
-        |    if(v.isSparse()) {
-        |      for(int i : inp.indices()) {
-        |        v.set(i, v.get(i) * idf.get(i));
-        |      }
-        |    } else {
-        |      for(int i = 0; i < inp.size(); i++) {
-        |        v.set(i, v.get(i) * idf.get(i));
-        |      }
-        |    }
-        |    return v;
-        |  }
-      """.stripMargin).nl()
-
-    sb.p("}").nl.di(1)
+    /**/
+    /*  */ sb.i(1).p("public Vector transform(Vector inp) {").nl
+    /*    */ sb.i(2).p("Vector v = inp.clone();").nl
+    /*    */ sb.i(2).p("if(v.isSparse()) {").nl
+    /*      */ sb.i(3).p("for(int i : inp.indices()) {").nl
+    /*        */ sb.i(4).p("v.set(i, v.get(i) * idf.get(i));").nl
+    /*      */ sb.i(3).p("}").nl
+    /*    */ sb.i(2).p("} else {").nl
+    /*      */ sb.i(3).p("for(int i = 0; i < inp.size(); i++) {").nl
+    /*        */ sb.i(4).p("v.set(i, v.get(i) * idf.get(i));").nl
+    /*      */ sb.i(3).p("}").nl
+    /*    */ sb.i(2).p("}").nl
+    /*    */ sb.i(2).p("return v;").nl
+    /*  */ sb.i(1).p("}").nl
+    /**/ sb.p("}").nl
     fileCtx.generate(sb)
-    sb.nl
     sb
   }
 

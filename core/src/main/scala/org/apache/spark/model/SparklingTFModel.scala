@@ -21,49 +21,37 @@ import org.apache.spark.mllib.feature.HashingTF
 import water.codegen.CodeGeneratorPipeline
 import water.util.SBPrintStream
 
-class SparklingTFModel(val sparkModel: HashingTF) extends SparklingModel {
-
-  val name = "SparklingTFModel"
+class SparklingTFModel(val sparkModel: HashingTF,
+                       val name: String = "SparklingTFModel") extends SparklingModel {
 
   def toJava(sb: SBPrintStream): SBPrintStream = {
 
     val fileCtx: CodeGeneratorPipeline = new CodeGeneratorPipeline
 
-    sb.p(
-      """import java.util.HashMap;
-        |import java.util.Map;
-        |import water.*;
-      """.stripMargin).nl
-
-    sb.p("public class ").p(name).p(" {").nl.ii(1)
-
-    sb.nl()
-
-    sb.p("  private int numFeatures = ").p(s"${sparkModel.numFeatures};").nl()
-
-    // TODO move indexOf/nonNegativeMod to util jar?
-    sb.p(
-      """
-        |  public Vector transform(Iterable<?> document) {
-        |    Map<Integer, Double> termFrequencies = new HashMap<>();
-        |    for(Object term : document) {
-        |      int i = indexOf(term);
-        |      termFrequencies.put(i, termFrequencies.getOrDefault(i, 0.0) + 1.0);
-        |    }
-        |    return new SparseVector(termFrequencies);
-        |  }
-        |
-        |  private Integer indexOf(Object term) { return nonNegativeMod(term.hashCode(), numFeatures); }
-        |
-        |  private Integer nonNegativeMod(int x, int mod) {
-        |    int rawMod = x % mod;
-        |    return rawMod + (rawMod < 0 ? mod : 0);
-        |  }
-      """.stripMargin).nl()
-
-    sb.p("}").nl.di(1)
+    /**/ sb.p("import java.util.HashMap;").nl
+    /**/ sb.p("import java.util.Map;").nl
+    /**/ sb.p("import water.*;").nl.nl
+    /**/
+    /**/ sb.p("public class ").p(name).p(" {").nl
+    /*  */ sb.i(1).p(s"private int numFeatures = ${sparkModel.numFeatures};").nl.nl
+    /**/
+    /*  */ sb.i(1).p("public Vector transform(Iterable<?> document) {").nl
+    /*    */ sb.i(2).p("Map<Integer, Double> termFrequencies = new HashMap<>();").nl
+    /*    */ sb.i(2).p("for(Object term : document) {").nl
+    /*      */ sb.i(3).p("int i = indexOf(term);").nl
+    /*      */ sb.i(3).p("termFrequencies.put(i, termFrequencies.getOrDefault(i, 0.0) + 1.0);").nl
+    /*    */ sb.i(2).p("}").nl
+    /*    */ sb.i(2).p("return new SparseVector(termFrequencies);").nl
+    /*  */ sb.i(1).p("}").nl.nl
+    /**/
+    /*  */ sb.i(1).p("private Integer indexOf(Object term) { return nonNegativeMod(term.hashCode(), numFeatures); }").nl.nl
+    /**/
+    /*  */ sb.i(1).p("private Integer nonNegativeMod(int x, int mod) {").nl
+    /*    */ sb.i(2).p("int rawMod = x % mod;").nl
+    /*    */ sb.i(2).p("return rawMod + (rawMod < 0 ? mod : 0);").nl
+    /*  */ sb.i(1).p("}").nl
+    /**/ sb.p("}").nl
     fileCtx.generate(sb)
-    sb.nl
     sb
   }
 
