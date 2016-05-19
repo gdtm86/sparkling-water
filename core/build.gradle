@@ -32,6 +32,9 @@ dependencies {
   // Sparkling Water REPL
   compile(project(':sparkling-water-repl'))
 
+  // Sparkling Water genmodel utils
+  compile(project(':sparkling-water-genmodel'))
+
   // Add joda optional convert library which is required in Scala environment
   compile "org.joda:joda-convert:1.7"
 

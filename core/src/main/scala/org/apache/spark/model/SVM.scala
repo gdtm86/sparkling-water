@@ -17,6 +17,7 @@
 
 package org.apache.spark.model
 
+import hex.ModelBuilder.BuilderVisibility
 import hex.{ModelBuilder, ModelCategory}
 import org.apache.spark.model.SVMModel.{SVMOutput, SVMParameters}
 
@@ -25,10 +26,29 @@ import org.apache.spark.model.SVMModel.{SVMOutput, SVMParameters}
   * For now this one because I use it in model API registration
  */
 class SVM(val startupOnce: Boolean) extends
-  ModelBuilder[SVMModel, SVMModel.SVMParameters, SVMOutput](new SVMParameters(), startupOnce) {
+  SparkModelBuilder[SVMModel, SVMModel.SVMParameters, SVMOutput](new SVMParameters(), startupOnce) {
 
-  // TODO guess this will need spark context? Need to check the driver class and how to integrate non MR jobs here
+  // TODO should this also return a Driver? probably no since we dont use the MR framework
+  override protected def trainSparkModel(): Unit = ???
+
+  // TODO this will most probabbly not be needed for nonH2O models needs refactoring in H2O core
   override def trainModelImpl(): Driver = ???
 
-  override def can_build(): Array[ModelCategory] = ???
+  override def can_build(): Array[ModelCategory] =
+    // TODO check with smarter people :-)
+    Array(
+      ModelCategory.Regression,
+      ModelCategory.Binomial,
+      ModelCategory.Multinomial
+    )
+
+  override def init(expensive: Boolean):Unit = {
+    super.init(expensive)
+    if (_parms._max_iterations < 1 || _parms._max_iterations > 9999999) {
+      error("max_iterations", "must be between 1 and 10 million")
+    }
+    // TODO validate other params. Optmizer name etc?
+  }
+
+  override def builderVisibility = BuilderVisibility.Experimental
 }

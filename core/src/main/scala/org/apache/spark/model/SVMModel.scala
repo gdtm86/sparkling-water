@@ -17,7 +17,11 @@
 
 package org.apache.spark.model
 
-import hex.Model
+import hex.{Model, ModelCategory}
+import hex.example.Example
+import org.apache.spark.mllib.linalg.Vector
+import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.rdd.RDD
 import water.{Key, Keyed}
 
 class SVMModel(val selfKey: Key[_ <: Keyed[_ <: Keyed[_ <: AnyRef]]],
@@ -37,15 +41,28 @@ object SVMModel {
 
     override def fullName(): String = "Support Vector Machine"
 
-    override def progressUnits(): Long = ???
+    override def progressUnits(): Long = _max_iterations
 
     override def algoName(): String = "SVM"
 
     override def javaName(): String = classOf[SVMModel].getName
 
-    // TODO add parameters required by Spark SVM
+    // TODO do I need to use this naming convention??
+    // TODO not very scala like, check if can be changed
+    var _step_size: Double = 0
+    var _max_iterations: Int = 0
+    var _reg_param: Double = 0
+    var _mini_batch_fraction: Double = 0
+    var _initial_weights: Vector = null // TODO change to my vector
+
+    var _optimizer: String = ""
+    var _add_intercept: Boolean = false
+
+
+
   }
 
-  class SVMOutput extends Model.Output {}
+  class SVMOutput(val interceptor: Int,
+                  val weights: Vector) extends Model.Output {}
 
 }
