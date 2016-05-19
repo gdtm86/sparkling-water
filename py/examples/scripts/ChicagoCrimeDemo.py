@@ -89,7 +89,7 @@ sc = SparkContext(conf=conf)
 # SQL support
 sqlContext = SQLContext(sc)
 # Start H2O services
-h2oContext = H2OContext(sc).start()
+h2oContext = H2OContext.getOrCreate(sc)
 # Define file names
 chicagoAllWeather = "chicagoAllWeather.csv"
 chicagoCensus = "chicagoCensus.csv"

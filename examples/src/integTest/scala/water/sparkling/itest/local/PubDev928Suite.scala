@@ -12,7 +12,7 @@ import org.scalatest.FunSuite
 import org.scalatest.junit.JUnitRunner
 import water.app.SparkContextSupport
 import water.fvec.H2OFrame
-import water.sparkling.itest.{LocalTest, IntegTestHelper}
+import water.sparkling.itest.{IntegTestStopper, LocalTest, IntegTestHelper}
 
 /**
   * PUBDEV-928 test suite.
@@ -33,9 +33,9 @@ class PubDev928Suite extends FunSuite with IntegTestHelper {
   }
 }
 
-object PubDev928Test extends SparkContextSupport {
+object PubDev928Test extends SparkContextSupport with IntegTestStopper {
 
-  def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit = exitOnException{
     val conf = configure("PUBDEV-928")
     val sc = new SparkContext(conf)
     val h2oContext = H2OContext.getOrCreate(sc)

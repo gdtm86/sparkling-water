@@ -26,13 +26,13 @@ import water.api.scalaInt.ScalaCodeHandler
 
 
 object RestAPIManager {
-  def registerClientWebAPI(sc: SparkContext, h2oContext: H2OContext): Unit = {
+  def registerClientWebAPI(h2oContext: H2OContext): Unit = {
     if(h2oContext.getConf.isH2OReplEnabled){
-      registerScalaIntEndp(sc, h2oContext)
+      registerScalaIntEndp(h2oContext.sparkContext, h2oContext)
     }
-    registerDataFramesEndp(sc, h2oContext)
-    registerH2OFramesEndp(sc, h2oContext)
-    registerRDDsEndp(sc, h2oContext)
+    registerDataFramesEndp(h2oContext.sparkContext, h2oContext)
+    registerH2OFramesEndp(h2oContext.sparkContext, h2oContext)
+    registerRDDsEndp(h2oContext.sparkContext, h2oContext)
   }
 
   private def registerH2OFramesEndp(sc: SparkContext, h2oContext: H2OContext) = {

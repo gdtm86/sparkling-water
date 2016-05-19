@@ -23,9 +23,10 @@ import water.Key
 import scala.reflect.runtime.universe._
 
 /**
-  * Holder for implicit conversions available on H2OContext
+  * Implicit transformations available on [[org.apache.spark.h2o.H2OContext]]
   */
 abstract class H2OContextImplicits {
+
   protected def _h2oContext: H2OContext
   /** Implicit conversion from RDD[Supported type] to H2OFrame */
   implicit def asH2OFrameFromRDDProduct[A <: Product : TypeTag](rdd : RDD[A]): H2OFrame = _h2oContext.asH2OFrame(rdd, None)

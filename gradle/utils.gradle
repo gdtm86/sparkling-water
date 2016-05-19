@@ -9,8 +9,19 @@ def isWindowsBased(){
     return Os.isFamily(Os.FAMILY_WINDOWS)
 }
 
+def detectClusterMode(defaultClusterMode = "internal") {
+    String mode = [ project.hasProperty("clusterMode") ? project["clusterMode"] : null,
+                    System.properties["clusterMode"],
+                    defaultClusterMode
+    ].find { h -> h!=null } // first match
+    // Return env
+
+    logger.info("* Test will be runnin in '$mode' cluster mode (configure via property 'clusterMode')")
+    return mode
+}
 // Export methods by turning them into closures
 ext{
     getOsSpecificCommandLine = this.&getOsSpecificCommandLine
     isWindowsBased = this.&isWindowsBased
+    detectClusterMode = this.&detectClusterMode
 }

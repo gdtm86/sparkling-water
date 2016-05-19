@@ -22,6 +22,7 @@ Unit tests for PySparkling;
 import unittest
 from pyspark import SparkContext, SparkConf
 from pysparkling.context import H2OContext
+from pysparkling.conf import H2OConf
 import h2o
 import test_utils
 
@@ -31,7 +32,7 @@ class ReusedPySparklingTestCase(unittest.TestCase):
     def setUpClass(cls):
         conf = SparkConf().setAppName("pyunit-test").setMaster("local-cluster[3,1,2048]").set("spark.ext.h2o.disable.ga","true").set("spark.driver.memory", "2g").set("spark.executor.memory", "2g").set("spark.ext.h2o.client.log.level", "DEBUG")
         cls._sc = SparkContext(conf=conf)
-        cls._hc = H2OContext(cls._sc).start()
+        cls._hc = H2OContext.getOrCreate(cls._sc)
 
     @classmethod
     def tearDownClass(cls):
@@ -132,7 +133,20 @@ class FrameTransformationsTest(ReusedPySparklingTestCase):
         self.assertEquals(len(df.columns), h2o_frame.ncol, "Number of columns should match")
         self.assertEquals(df.columns,h2o_frame.names, "Column names should match")
 
+class H2OConfTest(unittest.TestCase):
+    # test passing h2o_conf to H2OContext
+    def test_h2o_conf(self):
+        spark_conf = SparkConf().setAppName("pyunit-test").setMaster("local-cluster[3,1,2048]").set("spark.ext.h2o.disable.ga","true").set("spark.driver.memory", "2g").set("spark.executor.memory", "2g").set("spark.ext.h2o.client.log.level", "DEBUG")
+        sc = SparkContext(conf=spark_conf)
+        h2o_conf = H2OConf(sc).set_cloud_name("test-cloud")
+        hc = H2OContext.getOrCreate(sc, h2o_conf)
+
+        self.assertEquals(hc.get_conf().cloud_name(),"test-cloud", "Configuration property cloud_name should match")
+        sc.stop()
+
+
 
 if __name__ == '__main__':
-    test_utils.run_tests(FrameTransformationsTest,file_name="py_unit_tests_report")
+    test_utils.run_tests(FrameTransformationsTest, file_name="py_unit_tests_report")
+    test_utils.run_tests(H2OConfTest, file_name="py_h2oconf_unit_tests_report")
 

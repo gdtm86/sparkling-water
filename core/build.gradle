@@ -54,8 +54,8 @@ dependencies {
 // Setup test environment for Spark
 test {
     // Test environment
-    systemProperty "spark.testing",   "true"
-
+    systemProperty "spark.ext.h2o.backend.cluster.mode", detectClusterMode()
+    systemProperty "spark.testing", "true"
     systemProperty "spark.ext.h2o.node.log.dir", new File(project.getBuildDir(), "h2ologs-test/nodes")
     systemProperty "spark.ext.h2o.client.log.dir", new File(project.getBuildDir(), "h2ologs-test/client")
 
@@ -87,6 +87,7 @@ processResources.dependsOn createSparkVersionFile
 
 integTest {
     // Pass references to libraries to test launcher
+    systemProperty "spark.ext.h2o.backend.cluster.mode", detectClusterMode()
     systemProperty "spark.testing",   "true"
     systemProperty "spark.test.home", "${sparkHome}"
     systemProperty "sparkling.test.hdp.version", "${hdpVersion}"

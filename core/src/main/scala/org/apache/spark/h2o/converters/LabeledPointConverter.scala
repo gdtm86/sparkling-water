@@ -17,10 +17,10 @@
 
 package org.apache.spark.h2o.converters
 
-import org.apache.spark.h2o.H2OContextUtils.NodeDesc
 import org.apache.spark.h2o._
+import org.apache.spark.h2o.utils.{H2OTypeUtils, NodeDesc, ReflectionUtils}
 import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.{Logging, SparkContext, TaskContext}
+import org.apache.spark.{Logging, TaskContext}
 import water.Key
 import water.fvec.H2OFrame
 
@@ -28,19 +28,14 @@ import scala.collection.immutable
 import scala.language.implicitConversions
 import scala.reflect.runtime.universe._
 
-private[converters] object LabeledPointConverter extends Logging with ConvertersUtils{
+private[converters] object LabeledPointConverter extends Logging with ConverterUtils{
 
   /** Transform RDD[LabeledPoint] to appropriate H2OFrame */
-  def toH2OFrame(sc: SparkContext, rdd: RDD[LabeledPoint], frameKeyName: Option[String]): H2OFrame = {
-    import org.apache.spark.h2o.H2OTypeUtils._
-    import org.apache.spark.h2o.ReflectionUtils._
+  def toH2OFrame(hc: H2OContext, rdd: RDD[LabeledPoint], frameKeyName: Option[String]): H2OFrame = {
+    import H2OTypeUtils._
+    import ReflectionUtils._
 
     val keyName = frameKeyName.getOrElse("frame_rdd_" + rdd.id + Key.rand())
-    val fr = getFrameOrNone(keyName)
-    if(fr.isDefined){
-      // return early if this frame already exist
-      return fr.get
-    }
 
     // first convert vector to dense vector
     val rddDense = rdd.map(labeledPoint => new LabeledPoint(labeledPoint.label,labeledPoint.features.toDense))
@@ -55,7 +50,7 @@ private[converters] object LabeledPointConverter extends Logging with Converters
     val ftypes = 0.until(maxNumFeatures + 1).map(_ => typ(typeOf[Double]))
     val vecTypes = ftypes.indices.map(idx => dataTypeToVecType(ftypes(idx))).toArray
 
-    convert[LabeledPoint](sc, rdd, keyName, fnames, vecTypes, perLabeledPointRDDPartition(maxNumFeatures))
+    convert[LabeledPoint](hc, rdd, keyName, fnames, vecTypes, perLabeledPointRDDPartition(maxNumFeatures))
   }
 
   /**
@@ -70,40 +65,40 @@ private[converters] object LabeledPointConverter extends Logging with Converters
     */
   private[this]
   def perLabeledPointRDDPartition(maxNumFeatures: Int)
-                                 (keyName: String, vecTypes: Array[Byte], uploadPlan: immutable.Map[Int, NodeDesc])
+                                 (keyName: String, vecTypes: Array[Byte], uploadPlan: Option[immutable.Map[Int, NodeDesc]])
                                  (context: TaskContext, it: Iterator[LabeledPoint]): (Int, Long) = {
-    val conn = new DataUploadHelper.ConnectionHolder(uploadPlan(context.partitionId()))
+    val con = ConverterUtils.getWriteConverterContext(uploadPlan, context.partitionId())
+
     // Creates array of H2O NewChunks; A place to record all the data in this partition
-    conn.createChunksRemotely(keyName, vecTypes, context.partitionId())
+    con.createChunks(keyName, vecTypes, context.partitionId())
 
     it.foreach(labeledPoint => {
       // For all LabeledPoints in RDD
       var nextChunkId = 0
 
       // Add LabeledPoint label
-      conn.put(nextChunkId, labeledPoint.label)
+      con.put(nextChunkId, labeledPoint.label)
       nextChunkId = nextChunkId + 1
 
       for( i<-0 until labeledPoint.features.size) {
         // For all features...
-        conn.put(nextChunkId, labeledPoint.features(i))
-        nextChunkId =nextChunkId + 1
+        con.put(nextChunkId, labeledPoint.features(i))
+        nextChunkId = nextChunkId + 1
       }
 
       for( i<-labeledPoint.features.size until maxNumFeatures){
         // Fill missing features with n/a
-        conn.putNA(nextChunkId)
+        con.putNA(nextChunkId)
         nextChunkId = nextChunkId + 1
       }
 
-      conn.increaseRowCounter()
+      con.increaseRowCounter()
     })
 
     //Compress & write data in partitions to H2O Chunks
-    conn.closeChunksRemotely()
-    conn.close()
+    con.closeChunks()
 
     // Return Partition number and number of rows in this partition
-    (context.partitionId, conn.numOfRows)
+    (context.partitionId, con.numOfRows)
   }
 }

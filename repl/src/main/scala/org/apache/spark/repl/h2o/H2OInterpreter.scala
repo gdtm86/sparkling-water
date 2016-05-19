@@ -39,6 +39,7 @@ import scala.tools.nsc.util._
 
 /**
   * H2O Interpreter which is use to interpret scala code
+  *
   * @param sparkContext spark context
   * @param sessionId session ID for interpreter
   */
@@ -65,6 +66,7 @@ class H2OInterpreter(val sparkContext: SparkContext, var sessionId: Int) extends
 
   /**
     * Get response of interpreter
+    *
     * @return
     */
   def interpreterResponse: String = {
@@ -73,6 +75,7 @@ class H2OInterpreter(val sparkContext: SparkContext, var sessionId: Int) extends
 
   /**
     * Redirected printed output coming from commands written in the interpreter
+    *
     * @return
     */
   def consoleOutput: String = {
@@ -81,6 +84,7 @@ class H2OInterpreter(val sparkContext: SparkContext, var sessionId: Int) extends
 
   /**
     * Run scala code in a string
+    *
     * @param code Code to be compiled end executed
     * @return
     */
@@ -111,7 +115,11 @@ class H2OInterpreter(val sparkContext: SparkContext, var sessionId: Int) extends
         command(
           """
             @transient val h2oContext = {
-              val _h2oContext = org.apache.spark.h2o.H2OContext.getOrCreate(sc)
+              val _h2oContext = if(org.apache.spark.h2o.H2OContext.get().isEmpty){
+                   throw new RuntimeException("H2OContext has to be started in order to use the REPL.")
+                 }else{
+                   org.apache.spark.h2o.H2OContext.get().get
+                 }
               _h2oContext
             }
           """)
@@ -153,6 +161,7 @@ class H2OInterpreter(val sparkContext: SparkContext, var sessionId: Int) extends
 
   /**
     * Initialize the compiler settings
+    *
     * @return
     */
   private def createSettings(): Settings = {

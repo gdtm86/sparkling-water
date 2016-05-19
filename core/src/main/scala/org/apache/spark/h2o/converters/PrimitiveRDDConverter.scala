@@ -17,9 +17,9 @@
 
 package org.apache.spark.h2o.converters
 
-import org.apache.spark.h2o.H2OContextUtils.NodeDesc
 import org.apache.spark.h2o._
-import org.apache.spark.{Logging, SparkContext, TaskContext}
+import org.apache.spark.h2o.utils.{H2OTypeUtils, NodeDesc, ReflectionUtils}
+import org.apache.spark.{Logging, TaskContext}
 import water.Key
 import water.fvec.H2OFrame
 
@@ -27,25 +27,19 @@ import scala.collection.immutable
 import scala.language.implicitConversions
 import scala.reflect.runtime.universe._
 
-private[converters] object PrimitiveRDDConverter extends Logging with ConvertersUtils{
+private[converters] object PrimitiveRDDConverter extends Logging with ConverterUtils{
 
-  def toH2OFrame[T: TypeTag](sc: SparkContext, rdd: RDD[T], frameKeyName: Option[String]): H2OFrame = {
-    import org.apache.spark.h2o.H2OTypeUtils._
-    import org.apache.spark.h2o.ReflectionUtils._
+  def toH2OFrame[T: TypeTag](hc: H2OContext, rdd: RDD[T], frameKeyName: Option[String]): H2OFrame = {
+    import H2OTypeUtils._
+    import ReflectionUtils._
 
     val keyName = frameKeyName.getOrElse("frame_rdd_" + rdd.id + Key.rand())
-
-    val fr = getFrameOrNone(keyName)
-    if(fr.isDefined){
-      // return early if this frame already exist
-      return fr.get
-    }
 
     val fnames = Array[String]("values")
     val ftypes = Array[Class[_]](typ(typeOf[T]))
     val vecTypes = ftypes.indices.map(idx => dataTypeToVecType(ftypes(idx))).toArray
 
-    convert[T](sc, rdd, keyName, fnames, vecTypes, perPrimitiveRDDPartition())
+    convert[T](hc, rdd, keyName, fnames, vecTypes, perPrimitiveRDDPartition())
   }
 
 
@@ -53,7 +47,8 @@ private[converters] object PrimitiveRDDConverter extends Logging with Converters
     *
     * @param keyName key of the frame
     * @param vecTypes h2o vec types
-    * @param uploadPlan plan which assigns each partition h2o node where the data from that partition will be uploaded
+    * @param uploadPlan if external backend is used, then it is a plan which assigns each partition h2o
+    *                   node where the data from that partition will be uploaded, otherwise is Node
     * @param context spark task context
     * @param it iterator over data in the partition
     * @tparam T type of data inside the RDD
@@ -61,28 +56,27 @@ private[converters] object PrimitiveRDDConverter extends Logging with Converters
     */
   private[this]
   def perPrimitiveRDDPartition[T]() // extra arguments for this transformation
-                                 (keyName: String, vecTypes: Array[Byte], uploadPlan: immutable.Map[Int, NodeDesc]) // general arguments
+                                 (keyName: String, vecTypes: Array[Byte], uploadPlan: Option[immutable.Map[Int, NodeDesc]]) // general arguments
                                  (context: TaskContext, it: Iterator[T]): (Int, Long) = { // arguments and return types needed for spark's runJob input
-    val conn = new DataUploadHelper.ConnectionHolder(uploadPlan(context.partitionId()))
-    // Creates array of H2O NewChunks; A place to record all the data in this partition
-    conn.createChunksRemotely(keyName, vecTypes, context.partitionId())
+    val con = ConverterUtils.getWriteConverterContext(uploadPlan, context.partitionId())
+
+    con.createChunks(keyName, vecTypes, context.partitionId())
     // try to wait for reply to ensure we can continue with sending
     it.foreach { r =>
       r match {
-        case n: Number => conn.put(0, n)
-        case n: Boolean => conn.put(0, n)
-        case n: String => conn.put(0, n)
-        case n: java.sql.Timestamp => conn.put(0, n)
-        case _ => conn.putNA(0)
+        case n: Number => con.put(0, n)
+        case n: Boolean => con.put(0, n)
+        case n: String => con.put(0, n)
+        case n: java.sql.Timestamp => con.put(0, n)
+        case _ => con.putNA(0)
       }
-      conn.increaseRowCounter()
+      con.increaseRowCounter()
     }
     //Compress & write data in partitions to H2O Chunks
-    conn.closeChunksRemotely()
-    conn.close()
+    con.closeChunks()
 
     // Return Partition number and number of rows in this partition
-    (context.partitionId, conn.numOfRows)
+    (context.partitionId, con.numOfRows)
   }
 
 }

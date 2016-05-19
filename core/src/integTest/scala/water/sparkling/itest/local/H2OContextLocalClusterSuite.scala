@@ -17,8 +17,8 @@
 package water.sparkling.itest.local
 
 import org.apache.spark.SparkContext
-import org.apache.spark.h2o.H2OContext
-import org.apache.spark.h2o.util.SparkTestContext
+import org.apache.spark.h2o.{H2OConf, H2OContext}
+import org.apache.spark.h2o.utils.SparkTestContext
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfter, FunSuite, Matchers}
@@ -37,9 +37,20 @@ class H2OContextLocalClusterSuite extends FunSuite
     // For distributed testing we need to pass around jar containing all implementation classes plus test classes
     val conf = defaultSparkConf.setJars(swassembly :: Nil)
     sc = new SparkContext("local-cluster[3,2,2048]", "test-local-cluster", conf)
+
+    // start h2o cloud in case of external cluster mode
+    if(testsInExternalMode){
+      startCloud(3, sc.getConf)
+    }
+
     hc = H2OContext.getOrCreate(sc)
 
     assert(water.H2O.CLOUD.members().length == 3, "H2O cloud should have 3 members")
+
+    // stop h2o cloud in case of external cluster mode
+    if(testsInExternalMode){
+      stopCloud()
+    }
     // Does not reset
     resetContext()
   }
@@ -48,8 +59,18 @@ class H2OContextLocalClusterSuite extends FunSuite
   ignore("2nd run to verify that test does not overlap") {
     val conf = defaultSparkConf.setJars(swassembly :: Nil)
     sc = new SparkContext("local-cluster[3,2,721]", "test-local-cluster", conf)
+
+    // start h2o cloud in case of external cluster mode
+    if(testsInExternalMode){
+      startCloud(2, sc.getConf)
+    }
+
     hc = H2OContext.getOrCreate(sc)
 
+    // stop h2o cloud in case of external cluster mode
+    if(testsInExternalMode){
+      stopCloud()
+    }
     resetContext()
   }
 }

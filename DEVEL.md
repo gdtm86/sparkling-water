@@ -192,12 +192,6 @@ val sc:SparkContext = ...
 val hc = H2OContext.getOrCreate(sc)
 ```
 
-or:
-```scala
-val sc:SparkContext = ...
-val hc = new H2OContext(sc).start()
-```
-
 The call will:
  1. Collect the number and host names of the executors (worker nodes) in the Spark cluster
  2. Launch H2O services on each detected executor
@@ -267,24 +261,6 @@ The following configuration properties can be passed to Spark to configure Spark
 val sc:SparkContext = ...
 val hc = H2OContext.getOrCreate(sc)
 ```
-
-or:
-```scala
-val sc:SparkContext = ...
-val hc = new H2OContext(sc).start()
-```
-
-When the number of Spark nodes is known, it can be specified in `getOrCreate` call:
-```scala
-val hc = H2OContext.getOrCreate(sc, numOfSparkNodes)
-```
-
-or in `start` method of H2O Context:
-```scala
-val hc = new H2OContext(sc).start(numOfSparkNodes)
-```
-
-The former variant is preferred, because it initiates and starts H2O Context in one call and also can be used to obtain already existing H2OContext, but it does semantically the same as the latter variant.
 
 ---
 <a name="MemorySetup"></a>

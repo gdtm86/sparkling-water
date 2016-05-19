@@ -17,28 +17,29 @@
 
 package org.apache.spark.h2o.converters
 
-import org.apache.spark.h2o.H2OContextUtils.NodeDesc
-import org.apache.spark.h2o.H2OTypeUtils._
 import org.apache.spark.h2o._
-import org.apache.spark.{Logging, SparkContext, TaskContext}
+import org.apache.spark.h2o.utils.H2OTypeUtils._
+import org.apache.spark.h2o.utils.{H2OTypeUtils, NodeDesc, ReflectionUtils}
+import org.apache.spark.{Logging, TaskContext}
 import water.Key
 
 import scala.collection.immutable
 import scala.collection.mutable.ListBuffer
 import scala.language.implicitConversions
+import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
-private[converters] object ProductRDDConverter extends Logging with ConvertersUtils{
+private[converters] object ProductRDDConverter extends Logging with ConverterUtils{
+
+  /** Transform H2OFrame to Product RDD */
+  def toRDD[A <: Product: TypeTag: ClassTag](hc: H2OContext, fr: H2OFrame): RDD[A] = {
+    new H2ORDD[A](hc, fr)
+  }
 
   /** Transform RDD to H2OFrame. This method expects RDD of type Product without TypeTag */
-  def toH2OFrame(sc: SparkContext, rdd: RDD[Product], frameKeyName: Option[String]): H2OFrame = {
+  def toH2OFrame(hc: H2OContext, rdd: RDD[Product], frameKeyName: Option[String]): H2OFrame = {
 
     val keyName = frameKeyName.getOrElse("frame_rdd_" + rdd.id + Key.rand()) // There are uniq IDs for RDD
-    val fr = getFrameOrNone(keyName)
-    if(fr.isDefined){
-      // return early if this frame already exist
-      return fr.get
-    }
 
     // infer the type
     val first = rdd.first()
@@ -51,28 +52,22 @@ private[converters] object ProductRDDConverter extends Logging with ConvertersUt
     // Collect H2O vector types for all input types
     val vecTypes = ftypes.toArray[Class[_]].indices.map(idx => dataTypeToVecType(ftypes(idx))).toArray
 
-    convert[Product](sc, rdd, keyName, fnames, vecTypes, perTypedRDDPartition())
+    convert[Product](hc, rdd, keyName, fnames, vecTypes, perTypedRDDPartition())
   }
 
   /** Transform typed RDD into H2O Frame */
-  def toH2OFrame[T <: Product : TypeTag](sc: SparkContext, rdd: RDD[T], frameKeyName: Option[String]) : H2OFrame = {
-    import org.apache.spark.h2o.H2OTypeUtils._
-    import org.apache.spark.h2o.ReflectionUtils._
+  def toH2OFrame[T <: Product : TypeTag](hc: H2OContext, rdd: RDD[T], frameKeyName: Option[String]) : H2OFrame = {
+    import H2OTypeUtils._
+    import ReflectionUtils._
 
     val keyName = frameKeyName.getOrElse("frame_rdd_" + rdd.id + Key.rand()) // There are uniq IDs for RDD
-
-    val fr = getFrameOrNone(keyName)
-    if(fr.isDefined){
-      // return early if this frame already exist
-      return fr.get
-    }
 
     val fnames = names[T]
     val ftypes = types[T](fnames)
     // Collect H2O vector types for all input types
     val vecTypes = ftypes.indices.map(idx => dataTypeToVecType(ftypes(idx))).toArray
 
-    convert[T](sc, rdd, keyName, fnames, vecTypes, perTypedRDDPartition())
+    convert[T](hc, rdd, keyName, fnames, vecTypes, perTypedRDDPartition())
   }
 
   /**
@@ -87,11 +82,11 @@ private[converters] object ProductRDDConverter extends Logging with ConvertersUt
     */
   private[this]
   def perTypedRDDPartition[T<:Product]()
-                                      (keyName: String, vecTypes: Array[Byte], uploadPlan: immutable.Map[Int, NodeDesc])
+                                      (keyName: String, vecTypes: Array[Byte], uploadPlan: Option[immutable.Map[Int, NodeDesc]])
                                       ( context: TaskContext, it: Iterator[T] ): (Int,Long) = {
-    val conn = new DataUploadHelper.ConnectionHolder(uploadPlan(context.partitionId()))
+    val con = ConverterUtils.getWriteConverterContext(uploadPlan, context.partitionId())
     // Creates array of H2O NewChunks; A place to record all the data in this partition
-    conn.createChunksRemotely(keyName, vecTypes, context.partitionId())
+    con.createChunks(keyName, vecTypes, context.partitionId())
 
     it.foreach(prod => { // For all rows which are subtype of Product
       for( i <- 0 until prod.productArity ) { // For all fields...
@@ -101,22 +96,21 @@ private[converters] object ProductRDDConverter extends Logging with ConvertersUt
           case _ => fld
         }
         x match {
-          case n: Number  => conn.put(i, n)
-          case n: Boolean => conn.put(i, n)
-          case n: String  => conn.put(i, n)
-          case n : java.sql.Timestamp => conn.put(i, n)
-          case _ => conn.putNA(i)
+          case n: Number  => con.put(i, n)
+          case n: Boolean => con.put(i, n)
+          case n: String  => con.put(i, n)
+          case n : java.sql.Timestamp => con.put(i, n)
+          case _ => con.putNA(i)
         }
       }
-      conn.increaseRowCounter()
+      con.increaseRowCounter()
     })
 
     //Compress & write data in partitions to H2O Chunks
-    conn.closeChunksRemotely()
-    conn.close()
+    con.closeChunks()
 
     // Return Partition number and number of rows in this partition
-    (context.partitionId, conn.numOfRows)
+    (context.partitionId, con.numOfRows)
   }
 
   /**

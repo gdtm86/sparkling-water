@@ -18,7 +18,7 @@
 package org.apache.spark.h2o
 
 import org.apache.spark.SparkContext
-import org.apache.spark.h2o.util.SharedSparkTestContext
+import org.apache.spark.h2o.utils.SharedSparkTestContext
 import org.apache.spark.sql.SaveMode
 import org.junit.runner.RunWith
 import org.scalatest.FunSuite

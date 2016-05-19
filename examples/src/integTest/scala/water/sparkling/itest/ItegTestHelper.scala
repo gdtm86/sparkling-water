@@ -1,16 +1,20 @@
 package water.sparkling.itest
 
+import java.net.InetAddress
+
+import org.apache.spark.h2o.backends.SharedH2OConf._
+import org.apache.spark.h2o.utils.ExternalClusterModeTestUtils
+
 import org.scalatest.{BeforeAndAfterEach, Suite, Tag}
 
 import scala.collection.mutable
-import scala.util.Random
 
 /**
  * Integration test support to be run on top of Spark.
  */
-trait IntegTestHelper extends BeforeAndAfterEach { self: Suite =>
+trait IntegTestHelper extends BeforeAndAfterEach with ExternalClusterModeTestUtils{ self: Suite =>
 
-  private var testEnv:IntegTestEnv = _
+  private var testEnv: IntegTestEnv = _
 
   /** Launch given class name via SparkSubmit and use given environment
     * to configure SparkSubmit command line.
@@ -28,10 +32,10 @@ trait IntegTestHelper extends BeforeAndAfterEach { self: Suite =>
       env.sparkConf.get("spark.driver.memory").map(m => Seq("--driver-memory", m)).getOrElse(Nil) ++
       // Disable GA collection by default
       Seq("--conf", "spark.ext.h2o.disable.ga=true") ++
-      Seq("--conf", s"spark.ext.h2o.cloud.name=sparkling-water-${className.replace('.','-')}-${Random.nextInt()}") ++
       Seq("--conf", s"spark.driver.extraJavaOptions=-XX:MaxPermSize=384m -Dhdp.version=${env.hdpVersion}") ++
       Seq("--conf", s"spark.yarn.am.extraJavaOptions=-XX:MaxPermSize=384m -Dhdp.version=${env.hdpVersion}") ++
       Seq("--conf", s"spark.executor.extraJavaOptions=-XX:MaxPermSize=384m -Dhdp.version=${env.hdpVersion}") ++
+      Seq("--conf", s"spark.ext.h2o.backend.cluster.mode=${sys.props.getOrElse("spark.ext.h2o.backend.cluster.mode", "internal")}") ++
       Seq("--conf", "spark.scheduler.minRegisteredResourcesRatio=1") ++
       Seq("--conf", "spark.ext.h2o.repl.enabled=false") ++ // disable repl in tests
       Seq("--conf", s"spark.test.home=${env.sparkHome}") ++
@@ -55,10 +59,19 @@ trait IntegTestHelper extends BeforeAndAfterEach { self: Suite =>
   override protected def beforeEach(): Unit = {
     super.beforeEach()
     testEnv = new TestEnvironment
+    val cloudName = uniqueCloudName("integ-tests")
+    testEnv.sparkConf += PROP_CLOUD_NAME._1 -> cloudName
+    testEnv.sparkConf += PROP_CLIENT_IP._1 -> InetAddress.getLocalHost.getHostAddress
+    if(testsInExternalMode){
+      startCloud(2, cloudName, InetAddress.getLocalHost.getHostAddress)
+    }
   }
 
   override protected def afterEach(): Unit = {
     testEnv = null
+    if(testsInExternalMode){
+      stopCloud()
+    }
     super.afterEach()
   }
 
@@ -113,3 +126,19 @@ trait IntegTestHelper extends BeforeAndAfterEach { self: Suite =>
 object YarnTest extends Tag("water.sparkling.itest.YarnTest")
 object LocalTest extends Tag("water.sparkling.itest.LocalTest")
 object StandaloneTest extends Tag("water.sparkling.itest.StandaloneTest")
+
+
+trait IntegTestStopper{
+
+  def exitOnException(f: => Unit): Unit ={
+    try {
+      f
+    } catch {
+      case t: Throwable => {
+        System.err.println(t.toString)
+        t.printStackTrace()
+        water.H2O.exit(-1)
+      }
+    }
+  }
+}

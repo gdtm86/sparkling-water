@@ -1,16 +1,19 @@
 package water.sparkling.scripts
 
 import java.io.File
+import java.net.InetAddress
 
+import org.apache.spark.h2o.backends.SharedH2OConf._
+import org.apache.spark.h2o.utils.ExternalClusterModeTestUtils
 import org.apache.spark.repl.h2o.{CodeResults, H2OInterpreter}
-import org.apache.spark.{SparkContext, SparkConf}
-import org.scalatest.{Suite, BeforeAndAfterAll, FunSuite}
+import org.apache.spark.{SparkConf, SparkContext}
+import org.scalatest.{BeforeAndAfterAll, FunSuite, Suite}
 
 import scala.collection.immutable.HashMap
 import scala.collection.mutable.ListBuffer
 
 
-trait ScriptsTestHelper extends FunSuite with org.apache.spark.Logging with BeforeAndAfterAll {
+trait ScriptsTestHelper extends FunSuite with org.apache.spark.Logging with BeforeAndAfterAll with ExternalClusterModeTestUtils{
   self: Suite =>
   var sparkConf: SparkConf = _
   var sc: SparkContext = _
@@ -18,29 +21,41 @@ trait ScriptsTestHelper extends FunSuite with org.apache.spark.Logging with Befo
   override protected def beforeAll(): Unit = {
     sc = new SparkContext(sparkConf)
     super.beforeAll()
+    val cloudName = uniqueCloudName("integ-tests")
+    sparkConf.set(PROP_CLOUD_NAME._1, cloudName)
+    sparkConf.set(PROP_CLIENT_IP._1, InetAddress.getLocalHost.getHostAddress)
+    if(testsInExternalMode){
+      startCloud(2, cloudName, InetAddress.getLocalHost.getHostAddress)
+    }
   }
 
 
   override protected def afterAll(): Unit = {
+    if(testsInExternalMode){
+      stopCloud()
+    }
     if(sc!=null){
       sc.stop()
     }
+    super.afterAll()
   }
 
   def defaultConf: SparkConf = {
     val assemblyJar = sys.props.getOrElse("sparkling.assembly.jar",
       fail("The variable 'sparkling.assembly.jar' is not set! It should point to assembly jar file."))
     val conf = new SparkConf().setAppName("Script testing")
-      .set("spark.repl.class.uri",H2OInterpreter.classServerUri)
+      .set("spark.repl.class.uri", H2OInterpreter.classServerUri)
       .set("spark.ext.h2o.repl.enabled","false") // disable repl in tests
       .set("spark.driver.extraJavaOptions", "-XX:MaxPermSize=384m")
       .set("spark.executor.extraJavaOptions", "-XX:MaxPermSize=384m")
       .set("spark.driver.extraClassPath", assemblyJar)
       .set("spark.scheduler.minRegisteredResourcesRatio","1")
+      .set("spark.ext.h2o.backend.cluster.mode", sys.props.getOrElse("spark.ext.h2o.backend.cluster.mode", "internal"))
       .setJars(Array(assemblyJar))
 
     conf
   }
+
 
   private def launch(code: String, loop: H2OInterpreter, inspections: ScriptInspections): ScriptTestResult = {
     val testResult = new ScriptTestResult()
@@ -71,7 +86,7 @@ trait ScriptsTestHelper extends FunSuite with org.apache.spark.Logging with Befo
 
     val code = scala.io.Source.fromFile(sourceFile).mkString
     val loop = new H2OInterpreter(sc, sessionId = 1)
-    val res = launch(code,loop, inspections)
+    val res = launch(code, loop, inspections)
     loop.closeInterpreter()
     res
   }
