@@ -17,6 +17,7 @@
 
 package water.api.models
 
+import hex.schemas.SVMV3.SVMParametersV3
 import org.apache.spark.model.SVMModel
 import water.api.models.SVMModelV3.SVMModelOutputV3
 import water.api.{API, ModelOutputSchema, ModelSchema}
@@ -24,11 +25,11 @@ import water.api.{API, ModelOutputSchema, ModelSchema}
 class SVMModelV3 extends ModelSchema[SVMModel,
   SVMModelV3,
   SVMModel.SVMParameters,
-  SVMV3.SVMParametersV3,
+  SVMParametersV3,
   SVMModel.SVMOutput,
   SVMModelV3.SVMModelOutputV3] {
 
-  override def createParametersSchema(): SVMV3.SVMParametersV3 = { new SVMV3.SVMParametersV3() }
+  override def createParametersSchema(): SVMParametersV3 = { new SVMParametersV3() }
   override def createOutputSchema(): SVMModelOutputV3 = { new SVMModelOutputV3() }
   
 }

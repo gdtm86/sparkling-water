@@ -20,20 +20,51 @@ package water.api
 import java.util.Properties
 
 import hex.Model.{Output, Parameters}
-import hex.schemas.ModelBuilderSchema
+import hex.schemas.{ModelBuilderSchema, SVMV3}
 import hex.{Model, ModelBuilder}
-import org.apache.spark.model.SparkModelBuilder
-import water.util.{HttpResponseStatus, PojoUtils}
+import org.apache.spark.model.{SVM, SVMModel, SparkModelBuilder}
+import water.util.{ArrayUtils, HttpResponseStatus, PojoUtils}
 import water.{Key, TypeMap}
 
-/**
-  * TODO this will need some refactoring in H2O-3 I think, since the only change here is the call to:
-  * builder.trainModel -> builder.trainModelImpl and the job
-  * cannot override it since it's final... also making ModelBuilder more generic and subclassing it into
-  * H2OModelBuilder and SparkModelBuilder might be a good idea since SparkModelBuilders won't need our H2O jobs
-  *
-  */
 class SparkModelBuilderHandler[B <: ModelBuilder[_,_,_], S <: ModelBuilderSchema[_, _, _], P <: ModelParametersSchema[_,_]] extends Handler {
+
+  /**
+    * Will try a handler for one model for now and try to generalize it later
+    */
+  def handleSVM(version: Int, s: SVMV3): SVMV3 = {
+    val model_id = s.parameters.model_id.name
+    val algoName = s.algo
+    val key: Key[SVMModel] =
+      if (model_id == null) ModelBuilder.defaultKey(algoName).asInstanceOf[Key[SVMModel]]
+      else Key.make(model_id)
+
+    val idx: Int = ArrayUtils.find(ModelBuilder.algos(), algoName.toLowerCase)
+    assert(idx != -1, "Unregistered algorithm " + algoName)
+    val mb = new SVM(true)
+    mb.initialize(algoName, key)
+    mb.init(false)
+    _t_start = System.currentTimeMillis
+    mb.trainSparkModel()
+    _t_stop = System.currentTimeMillis
+    s.fillFromImpl(mb)
+    PojoUtils.copyProperties(
+      s.parameters,
+      mb._parms,
+      PojoUtils.FieldNaming.ORIGIN_HAS_UNDERSCORES,
+      null,
+      Array[String]("error_count", "messages")
+    )
+    s.setHttpStatus(HttpResponseStatus.OK.getCode)
+    s
+  }
+
+  /**
+    * TODO this will need some refactoring in H2O-3 I think, since the only change here is the call to:
+    * builder.trainModel -> builder.trainModelImpl and the job
+    * cannot override it since it's final... also making ModelBuilder more generic and subclassing it into
+    * H2OModelBuilder and SparkModelBuilder might be a good idea since SparkModelBuilders won't need our H2O jobs
+    *
+    */
   // TODO figure out the types
   // Maybe I don't need to override this and just rely on the default handle from Handler??
   /*override*/ def handle2(version: Int, route: Route, parms: Properties): S = {

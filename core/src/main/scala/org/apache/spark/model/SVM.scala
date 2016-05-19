@@ -17,9 +17,11 @@
 
 package org.apache.spark.model
 
+import hex.Model.{Output, Parameters}
 import hex.ModelBuilder.BuilderVisibility
-import hex.{ModelBuilder, ModelCategory}
+import hex.{Model, ModelBuilder, ModelCategory}
 import org.apache.spark.model.SVMModel.{SVMOutput, SVMParameters}
+import water.Key
 
 /**
   * TODO need to figure out all the constructors
@@ -50,5 +52,10 @@ class SVM(startupOnce: Boolean) extends
     // TODO validate other params. Optmizer name etc?
   }
 
-  override def builderVisibility = BuilderVisibility.Experimental
+  // TODO Experimental??
+  override def builderVisibility = BuilderVisibility.Stable
+
+  def initialize(algo: String, key: Key[SVMModel]): Unit = {
+    this._result = key
+  }
 }
