@@ -22,7 +22,10 @@ import hex.{Model, ModelBuilder}
 import water.Key
 import water.util.ArrayUtils
 
-trait SparkModelBuilder extends ModelBuilder {
+abstract class SparkModelBuilder[
+M <: Model[M, P, O],
+P <: Model.Parameters,
+O <: Model.Output](params: P, startupOnce: Boolean) extends ModelBuilder[M, P, O](params, startupOnce) {
 
   // TODO should this also return a Driver? probably no since we dont use the MR framework
   def trainSparkModel()
@@ -30,21 +33,21 @@ trait SparkModelBuilder extends ModelBuilder {
 }
 
 object SparkModelBuilder {
-  def make[B <: ModelBuilder](algo: String, result: Key[_ <: Model[_ <: Model[_, _, _], _ <: Parameters, _ <: Output]]): B = {
+  def make[B <: ModelBuilder[_,_,_]](algo: String, result: Key[_ <: Model[_ <: Model[_, _, _], _ <: Parameters, _ <: Output]]): B = {
     val idx: Int = ArrayUtils.find(ModelBuilder.algos(), algo.toLowerCase)
     assert(idx != -1, "Unregistered algorithm " + algo)
     val mb: B = builders(idx).clone.asInstanceOf[B]
     // TODO set those somehow
-//    mb._result = result
-//    mb._parms = builders(idx)._parms.clone
+    //    mb._result = result
+    //    mb._parms = builders(idx)._parms.clone
     mb
   }
 
   // FIXME yes very bad I know but don't see better ways to do it without ModelBuilder refactoring
   private def builders = {
-    val myClass = Class.forName(classOf[ModelBuilder].getName)
+    val myClass = Class.forName(classOf[ModelBuilder[_,_,_]].getName)
     val myField = myClass.getDeclaredField("BUILDERS")
-    myField.get(null).asInstanceOf[Array[ModelBuilder]]
+    myField.get(null).asInstanceOf[Array[ModelBuilder[_,_,_]]]
   }
 
 }

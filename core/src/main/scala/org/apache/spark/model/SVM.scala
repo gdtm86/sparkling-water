@@ -25,11 +25,11 @@ import org.apache.spark.model.SVMModel.{SVMOutput, SVMParameters}
   * TODO need to figure out all the constructors
   * For now this one because I use it in model API registration
  */
-class SVM(val startupOnce: Boolean) extends
+class SVM(startupOnce: Boolean) extends
   SparkModelBuilder[SVMModel, SVMModel.SVMParameters, SVMOutput](new SVMParameters(), startupOnce) {
 
   // TODO should this also return a Driver? probably no since we dont use the MR framework
-  override protected def trainSparkModel(): Unit = ???
+  override def trainSparkModel(): Unit = ???
 
   // TODO this will most probabbly not be needed for nonH2O models needs refactoring in H2O core
   override def trainModelImpl(): Driver = ???

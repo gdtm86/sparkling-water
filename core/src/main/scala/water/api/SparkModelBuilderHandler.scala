@@ -15,16 +15,15 @@
  * limitations under the License.
  */
 
-package water.api.models
+package water.api
 
 import java.util.Properties
 
 import hex.Model.{Output, Parameters}
 import hex.schemas.ModelBuilderSchema
 import hex.{Model, ModelBuilder}
-import org.apache.spark.model.{SVM, SparkModelBuilder}
-import water.api.{Handler, ModelParametersSchema, Route}
-import water.util.{ArrayUtils, HttpResponseStatus, PojoUtils}
+import org.apache.spark.model.SparkModelBuilder
+import water.util.{HttpResponseStatus, PojoUtils}
 import water.{Key, TypeMap}
 
 /**
@@ -34,8 +33,10 @@ import water.{Key, TypeMap}
   * H2OModelBuilder and SparkModelBuilder might be a good idea since SparkModelBuilders won't need our H2O jobs
   *
   */
-class SparkModelBuilderHandler[B <: SparkModelBuilder, S <: ModelBuilderSchema[B, S, P], P <: ModelParametersSchema] extends Handler {
-  override def handle(version: Int, route: Route, parms: Properties): S = {
+class SparkModelBuilderHandler[B <: ModelBuilder[_,_,_], S <: ModelBuilderSchema[_, _, _], P <: ModelParametersSchema[_,_]] extends Handler {
+  // TODO figure out the types
+  // Maybe I don't need to override this and just rely on the default handle from Handler??
+  /*override*/ def handle2(version: Int, route: Route, parms: Properties): S = {
     val ss: Array[String] = route._url_pattern_raw.split("/")
     val algoURLName: String = ss(3)
     val algoName: String = ModelBuilder.algoName(algoURLName)
@@ -46,7 +47,7 @@ class SparkModelBuilderHandler[B <: SparkModelBuilder, S <: ModelBuilderSchema[B
 
     val parmName: String = schemaDir + algoName + "V" + version + "$" + algoName + "ParametersV" + version
     val parmSchema: P = TypeMap.newFreezable(parmName).asInstanceOf[P]
-    schema.parameters = parmSchema
+//    schema.parameters = parmSchema
 
     val handlerName: String = route._handler_method.getName
     val doTrain: Boolean = handlerName == "train"
@@ -71,10 +72,10 @@ class SparkModelBuilderHandler[B <: SparkModelBuilder, S <: ModelBuilderSchema[B
     builder.init(false)
     _t_start = System.currentTimeMillis
 
-    if (doTrain) builder.trainSparkModel()
+//    if (doTrain) builder.trainSparkModel()
 
     _t_stop = System.currentTimeMillis
-    schema.fillFromImpl(builder)
+//    schema.fillFromImpl(builder)
     PojoUtils.copyProperties(schema.parameters, builder._parms, PojoUtils.FieldNaming.ORIGIN_HAS_UNDERSCORES, null, Array[String]("error_count", "messages"))
     schema.setHttpStatus(HttpResponseStatus.OK.getCode)
     schema
