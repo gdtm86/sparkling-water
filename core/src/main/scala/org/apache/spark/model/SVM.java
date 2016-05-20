@@ -21,6 +21,9 @@ import hex.ModelBuilder;
 import hex.ModelCategory;
 import org.apache.spark.SparkContext;
 import org.apache.spark.h2o.H2OContext;
+import org.apache.spark.mllib.classification.SVMWithSGD;
+import org.apache.spark.mllib.regression.LabeledPoint;
+import org.apache.spark.rdd.RDD;
 import water.Job;
 import water.Scope;
 import water.util.Log;
@@ -35,7 +38,7 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
     private H2OContext h2OContext;
 
     public SVM(boolean startup_once) {
-        super(new SVMModel.SVMParameters(),startup_once);
+        super(new SVMModel.SVMParameters(), startup_once);
     }
 
     public SVM(Job<?> job,
@@ -46,7 +49,10 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
         this.h2OContext = h2OContext;
     }
 
-    public SVM( SVMModel.SVMParameters parms ) { super(parms); init(false); }
+    public SVM(SVMModel.SVMParameters parms) {
+        super(parms);
+        init(false);
+    }
 
     @Override
     protected Driver trainModelImpl() {
@@ -72,13 +78,6 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
         // TODO validate other params. Optmizer name etc?
     }
 
-    // TODO Experimental??
-    @Override
-    public BuilderVisibility builderVisibility() {
-        return BuilderVisibility.Stable;
-    }
-
-
     private class SVMDriver extends Driver {
         @Override
         public void compute2() {
@@ -92,11 +91,13 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
                 model = new SVMModel(_job._result, _parms, new SVMModel.SVMOutput(SVM.this));
                 model.delete_and_lock(_job);
 
-//        _parms.train()
+                RDD<LabeledPoint> training = getTrainingData(_parms);
+                org.apache.spark.mllib.classification.SVMModel trainedModel =
+                        SVMWithSGD.train(training, _parms._max_iterations);
 
                 // Fill in the model
-//        model._output.weights =
-//        model._output.interceptor =
+                model._output.weights = trainedModel.weights().toArray();
+                model._output.interceptor = trainedModel.intercept();
                 model.update(_job); // Update model in K/V store
 //        _job.update(1); // TODO how to update from Spark hmmm?
 
@@ -109,6 +110,12 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
                 Scope.exit(model == null ? null : model._key);
             }
             tryComplete();
+        }
+
+        private RDD<LabeledPoint> getTrainingData(SVMModel.SVMParameters parms) {
+            // TODO implement
+            parms.train();
+            return null;
         }
     }
 

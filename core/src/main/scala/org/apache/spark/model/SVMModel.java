@@ -55,7 +55,7 @@ public class SVMModel extends Model<SVMModel, SVMModel.SVMParameters, SVMModel.S
     public static class SVMOutput extends Model.Output {
         // Iterations executed
         public int _iterations;
-        public int interceptor;
+        public double interceptor;
         public double[] weights;
         public long[] _training_time_ms = new long[]{System.currentTimeMillis()};
 
