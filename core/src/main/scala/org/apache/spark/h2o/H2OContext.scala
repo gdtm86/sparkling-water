@@ -19,8 +19,6 @@ package org.apache.spark.h2o
 
 import java.util.concurrent.atomic.AtomicReference
 
-import hex.schemas.LabPoint
-import hex.{Model, ModelBuilder}
 import org.apache.spark._
 import org.apache.spark.api.java.{JavaRDD, JavaSparkContext}
 import org.apache.spark.h2o.H2OContextUtils._
@@ -146,9 +144,6 @@ class H2OContext(@transient val sparkContext: SparkContext) extends {
   def asRDD[A <: Product : TypeTag : ClassTag] = new {
     def apply[T <: Frame](fr: T): RDD[A] = createH2ORDD[A, T](fr)
   }
-
-  /** TODO Temporarily here, hard to call asRDD from Java code*/
-  def asLabPointRDD(fr: H2OFrame): RDD[LabPoint] = createH2ORDD[LabPoint](fr)
 
   /** Convert given H2O frame into DataFrame type */
   @deprecated("1.3", "Use asDataFrame")

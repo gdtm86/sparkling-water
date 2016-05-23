@@ -20,9 +20,10 @@ package hex.schemas;
 import org.apache.spark.model.SVM;
 import org.apache.spark.model.SVMModel;
 import water.api.API;
-import water.api.KeyV3;
 import water.api.ModelParametersSchema;
 
+
+// Seems like this has to be in Java since H2O's frameworks uses reflection's getFields...
 public class SVMV3 extends ModelBuilderSchema<SVM, SVMV3, SVMV3.SVMParametersV3> {
 
     public static final class SVMParametersV3 extends
@@ -30,30 +31,38 @@ public class SVMV3 extends ModelBuilderSchema<SVM, SVMV3, SVMV3.SVMParametersV3>
         public static String[] fields = new String[]{
                 "model_id",
                 "training_frame",
-                "training_rdd",
+                "response_column",
                 "validation_frame",
                 "nfolds",
-                "keep_cross_validation_predictions",
-                "keep_cross_validation_fold_assignment",
-                "fold_assignment",
-                "fold_column",
+                "add_intercept",
+
+                "step_size",
+                "reg_param",
+                "convergence_tol",
+                "mini_batch_fraction",
+                "add_feature_scaling",
+
                 "ignored_columns",
-                "ignore_const_cols",
-                "score_each_iteration",
-                "max_runtime_secs",
-                "max_iterations",
-                "user_points"
+                "ignore_const_cols"
         };
 
-        @API(help="RDD used for training", required = false)
-        public String training_rdd;
+        @API(help="Add intercept.", direction=API.Direction.INPUT)
+        public boolean add_intercept = false;
 
-        @API(help = "User-specified points", required = false)
-        public KeyV3.FrameKeyV3 user_points;
+        @API(help="Set step size", direction=API.Direction.INPUT)
+        public double step_size = 1.0;
 
-        @API(help = "Maximum training iterations", gridable = true)
-        public int max_iterations;
+        @API(help="Set regularization parameter", direction=API.Direction.INPUT)
+        public double reg_param = 0.01;
 
+        @API(help="Set convergence tolerance", direction=API.Direction.INPUT)
+        public double convergence_tol = 0.001;
+
+        @API(help="Set mini batch fraction", direction=API.Direction.INPUT)
+        public double mini_batch_fraction = 1.0;
+
+        @API(help="Add feature scaling", direction=API.Direction.INPUT)
+        public boolean add_feature_scaling = false;
     }
 
 }

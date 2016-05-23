@@ -19,7 +19,6 @@ package org.apache.spark.model;
 
 import hex.ModelBuilder;
 import hex.ModelCategory;
-import hex.schemas.LabPoint;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.h2o.H2OContext;
@@ -28,6 +27,9 @@ import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
 import org.apache.spark.rdd.RDD;
+import org.apache.spark.sql.DataFrame;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SQLContext;
 import water.Job;
 import water.Scope;
 import water.fvec.H2OFrame;
@@ -35,12 +37,13 @@ import water.util.Log;
 
 /**
  * TODO need to figure out all the constructors
- * For now this one because I use it in model API registration
+ * Maybe if I don't need them all I can rewrite this in Scala?
  */
 public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel.SVMOutput> {
 
-    private SparkContext sc = H2OContext.getSparkContext();
-    private H2OContext h2oContext = H2OContext.getOrCreate(sc);
+    private final SparkContext sc = H2OContext.getSparkContext();
+    private final H2OContext h2oContext = H2OContext.getOrCreate(sc);
+    private final SQLContext sqlContext = SQLContext.getOrCreate(sc);
 
     public SVM(boolean startup_once) {
         super(new SVMModel.SVMParameters(), startup_once);
@@ -67,12 +70,13 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
         };
     }
 
+    @Override
+    public boolean isSupervised() {
+        return true;
+    }
 
     @Override
     public void init(boolean expensive) {
-        if (_parms._train == null && _parms.training_rdd != null) {
-            // TODO implement
-        }
         super.init(expensive);
         if (_parms._max_iterations < 1 || _parms._max_iterations > 9999999) {
             error("max_iterations", "must be between 1 and 10 million");
@@ -96,16 +100,31 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
                 RDD<LabeledPoint> training = getTrainingData(_parms);
                 training.cache();
 
-                org.apache.spark.mllib.classification.SVMModel trainedModel =
-                        SVMWithSGD.train(training, _parms._max_iterations);
+                SVMWithSGD svm = new SVMWithSGD();
+                svm.setIntercept(_parms._add_intercept);
+                svm.setFeatureScaling(_parms._add_feature_scaling);
 
+                svm.optimizer().setNumIterations(_parms._max_iterations);
+
+                svm.optimizer().setStepSize(_parms._step_size);
+                svm.optimizer().setRegParam(_parms._reg_param);
+                svm.optimizer().setMiniBatchFraction(_parms._mini_batch_fraction);
+                svm.optimizer().setConvergenceTol(_parms._convergence_tol);
+                /* TODO add to GUI
+                svm.optimizer().setGradient();
+                svm.optimizer().setUpdater();*/
+
+//                if(null == _parms._initial_weights) {
+                org.apache.spark.mllib.classification.SVMModel trainedModel = svm.run(training);
+//                } else {
+//                    svm.run(training, initialWeights(_parms._initial_weights));
+//                }
                 training.unpersist(false);
 
-                // Fill in the model
                 model._output.weights = trainedModel.weights().toArray();
                 model._output.interceptor = trainedModel.intercept();
                 model.update(_job); // Update model in K/V store
-//        _job.update(1); // TODO how to update from Spark hmmm?
+                _job.update(model._parms._max_iterations); // TODO how to update from Spark hmmm?
 
                 StringBuilder sb = new StringBuilder();
                 sb.append("Example: iter: ").append(model._output._iterations);
@@ -119,23 +138,18 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
         }
 
         private RDD<LabeledPoint> getTrainingData(SVMModel.SVMParameters parms) {
-            return h2oContext.asLabPointRDD(new H2OFrame(parms.train()))
-                    .toJavaRDD()
-                    .map(new Function<LabPoint, LabeledPoint>() {
-                        @Override
-                        public LabeledPoint call(LabPoint x) throws Exception {
-                            Vector v = Vectors.dense(
-                                    (Double) x.Vector0().get(),
-                                    (Double) x.Vector1().get(),
-                                    (Double) x.Vector2().get(),
-                                    (Double) x.Vector3().get(),
-                                    (Double) x.Vector4().get()
-                            );
-                            return new LabeledPoint((Integer) x.Label().get(), v);
-                        }
-                    }).rdd();
+            DataFrame df = h2oContext.createH2OSchemaRDD(new H2OFrame(parms.train()), SVM.this.sqlContext);
+            return df.toJavaRDD().map(new RowToVector()).rdd();
+        }
+
+    }
+    private static class RowToVector implements Function<Row, LabeledPoint> {
+        @Override
+        public LabeledPoint call(Row r) throws Exception {
+            // assuming the response was moved by ModelBuilder#init()
+            Vector v = Vectors.dense(r.getDouble(1), r.toSeq().drop(2).toSeq());
+            return new LabeledPoint(r.getByte(0), v);
         }
     }
-
 }
 
