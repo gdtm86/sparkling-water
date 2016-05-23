@@ -19,6 +19,7 @@ package org.apache.spark.h2o
 
 import java.util.concurrent.atomic.AtomicReference
 
+import hex.schemas.LabPoint
 import hex.{Model, ModelBuilder}
 import org.apache.spark._
 import org.apache.spark.api.java.{JavaRDD, JavaSparkContext}
@@ -145,6 +146,9 @@ class H2OContext(@transient val sparkContext: SparkContext) extends {
   def asRDD[A <: Product : TypeTag : ClassTag] = new {
     def apply[T <: Frame](fr: T): RDD[A] = createH2ORDD[A, T](fr)
   }
+
+  /** TODO Temporarily here, hard to call asRDD from Java code*/
+  def asLabPointRDD(fr: H2OFrame): RDD[LabPoint] = createH2ORDD[LabPoint](fr)
 
   /** Convert given H2O frame into DataFrame type */
   @deprecated("1.3", "Use asDataFrame")
@@ -352,6 +356,13 @@ object H2OContext extends Logging {
         instantiatedContext.set(h2oContext)
       }
     }
+  }
+
+  def getSparkContext(): SparkContext = {
+    if(instantiatedContext.get() == null) {
+      throw new IllegalStateException("H2O context has to be first initialized!")
+    }
+    instantiatedContext.get().sparkContext
   }
 
   @transient private val instantiatedContext = new AtomicReference[H2OContext]()
@@ -800,33 +811,29 @@ object H2OContext extends Logging {
   }
 
   private def registerModels(sc: SparkContext, h2oContext: H2OContext) = {
-    val sparkModelBuilderHandler = new SparkModelBuilderHandler(sc, h2oContext)
-
-    def sparkModelBuilderHandlerFactory = new HandlerFactory {
-      override def create(aClass: Class[_ <: Handler]): Handler = sparkModelBuilderHandler
-    }
 
     val models = Seq(new SVM(true))
 
     // TODO delicious copy-pasta from h2o-3 hex.api.Register, maybe possible to refactor that part?
-    // TODO need to check if ModelBuilderHandler will work or need a sc/h2ocontext specific handler
     for (algo <- models) {
       val base: String = algo.getClass.getSimpleName
       val lbase: String = base.toLowerCase
       val bh_clz: Class[_] = classOf[ModelBuilderHandler[_, _, _]]
       // TODO shouldn't this be hardcoded somewhere in one place in h2o-3?? can't find
       val version: Int = 3
-      RequestServer.register("/" + version + "/ModelBuilders/" + lbase, "POST",
-        classOf[SparkModelBuilderHandler], "handleSVM",
-        null,
-        "Train a " + base + " model.",
-        sparkModelBuilderHandlerFactory)
-
-      // TODO this for now should be ok with the original ModelBuilderHandler?
-      H2O.registerPOST("/" + version + "/ModelBuilders/" + lbase + "/parameters",
+      H2O.registerPOST("/" + version + "/ModelBuilders/" + lbase, bh_clz, "train", "Train a " + base + " model.")
+      H2O.registerPOST(
+        "/" + version + "/ModelBuilders/" + lbase + "/parameters",
         bh_clz,
         "validate_parameters",
         "Validate a set of " + base + " model builder parameters."
+      )
+      // Grid search is experimental feature
+      H2O.registerPOST(
+        "/99/Grid/" + lbase,
+        classOf[GridSearchHandler[_,_,_,_]],
+        "train",
+        "Run grid search for " + base + " model."
       )
     }
   }

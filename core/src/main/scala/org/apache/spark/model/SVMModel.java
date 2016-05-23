@@ -19,9 +19,13 @@ package org.apache.spark.model;
 
 import hex.Model;
 import hex.ModelMetrics;
+import hex.ModelMetricsBinomial;
+import org.apache.spark.mllib.linalg.Vectors;
 import water.H2O;
 import water.Key;
 import water.api.KeyV3;
+
+import java.util.Arrays;
 
 public class SVMModel extends Model<SVMModel, SVMModel.SVMParameters, SVMModel.SVMOutput> {
 
@@ -44,6 +48,7 @@ public class SVMModel extends Model<SVMModel, SVMModel.SVMParameters, SVMModel.S
         }
 
         public int _max_iterations = 1000; // Max iterations
+        public String training_rdd;
         public double _step_size;
         public double _reg_param;
         public double _mini_batch_fraction;
@@ -71,11 +76,16 @@ public class SVMModel extends Model<SVMModel, SVMModel.SVMParameters, SVMModel.S
 
     @Override
     public ModelMetrics.MetricBuilder makeMetricBuilder(String[] domain) {
-        throw H2O.unimpl("No Model Metrics for ExampleModel.");
+        return new ModelMetricsBinomial.MetricBuilderBinomial(domain);
     }
 
     @Override
     protected double[] score0(double data[/*ncols*/], double preds[/*nclasses+1*/]) {
-        throw H2O.unimpl();
+        org.apache.spark.mllib.classification.SVMModel model =
+                new org.apache.spark.mllib.classification.SVMModel(Vectors.dense(_output.weights), _output.interceptor);
+        // TODO should this return only the predicted class or two values {X, Y} for 0 and 1?
+        // TODO2 this probably shouldnt copyOfRange, should I assume data of correct size?
+        preds[0] = model.predict(Vectors.dense(Arrays.copyOfRange(data, 1, data.length)));
+        return preds;
     }
 }

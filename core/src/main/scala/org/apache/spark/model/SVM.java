@@ -22,10 +22,13 @@ import hex.ModelCategory;
 import org.apache.spark.SparkContext;
 import org.apache.spark.h2o.H2OContext;
 import org.apache.spark.mllib.classification.SVMWithSGD;
+import org.apache.spark.mllib.linalg.Vector;
+import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
 import org.apache.spark.rdd.RDD;
 import water.Job;
 import water.Scope;
+import water.fvec.H2OFrame;
 import water.util.Log;
 
 /**
@@ -34,19 +37,15 @@ import water.util.Log;
  */
 public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel.SVMOutput> {
 
-    private SparkContext sc;
-    private H2OContext h2OContext;
+    private SparkContext sc = H2OContext.getSparkContext();
+    private H2OContext h2oContext = H2OContext.getOrCreate(sc);
 
     public SVM(boolean startup_once) {
         super(new SVMModel.SVMParameters(), startup_once);
     }
 
-    public SVM(Job<?> job,
-               SparkContext sc,
-               H2OContext h2OContext) {
+    public SVM(Job<?> job) {
         super(new SVMModel.SVMParameters(), job);
-        this.sc = sc;
-        this.h2OContext = h2OContext;
     }
 
     public SVM(SVMModel.SVMParameters parms) {
@@ -62,15 +61,16 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
     @Override
     public ModelCategory[] can_build() {
         return new ModelCategory[]{
-                ModelCategory.Regression,
-                ModelCategory.Binomial,
-                ModelCategory.Multinomial
+                ModelCategory.Binomial
         };
     }
 
 
     @Override
     public void init(boolean expensive) {
+        if (_parms._train == null && _parms.training_rdd != null) {
+            // TODO implement
+        }
         super.init(expensive);
         if (_parms._max_iterations < 1 || _parms._max_iterations > 9999999) {
             error("max_iterations", "must be between 1 and 10 million");
@@ -92,8 +92,12 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
                 model.delete_and_lock(_job);
 
                 RDD<LabeledPoint> training = getTrainingData(_parms);
+                training.cache();
+
                 org.apache.spark.mllib.classification.SVMModel trainedModel =
                         SVMWithSGD.train(training, _parms._max_iterations);
+
+                training.unpersist(false);
 
                 // Fill in the model
                 model._output.weights = trainedModel.weights().toArray();
@@ -113,9 +117,18 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
         }
 
         private RDD<LabeledPoint> getTrainingData(SVMModel.SVMParameters parms) {
-            // TODO implement
-            parms.train();
-            return null;
+            return h2oContext.asLabPointRDD(new H2OFrame(parms.train()))
+                    .toJavaRDD()
+                    .map(x -> {
+                        Vector v = Vectors.dense(
+                                (Double) x.Vector0().get(),
+                                (Double) x.Vector1().get(),
+                                (Double) x.Vector2().get(),
+                                (Double) x.Vector3().get(),
+                                (Double) x.Vector4().get()
+                        );
+                        return new LabeledPoint((Integer) x.Label().get(), v);
+                    }).rdd();
         }
     }
 

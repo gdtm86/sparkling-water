@@ -39,7 +39,8 @@ object SVMModelV3 {
   final class SVMModelOutputV3 extends ModelOutputSchema[SVMModel.SVMOutput, SVMModelOutputV3] {
     // Output fields
     @API(help = "Iterations executed") var iterations: Int = 0
-    @API(help = "") var maxs: Array[Double] = Array()
+    @API(help = "Interceptor") var interceptor: Double = 0
+    @API(help = "Weights") var weights: Array[Double] = Array()
   }
 
 }

@@ -30,6 +30,7 @@ public class SVMV3 extends ModelBuilderSchema<SVM, SVMV3, SVMV3.SVMParametersV3>
         public static String[] fields = new String[]{
                 "model_id",
                 "training_frame",
+                "training_rdd",
                 "validation_frame",
                 "nfolds",
                 "keep_cross_validation_predictions",
@@ -40,10 +41,12 @@ public class SVMV3 extends ModelBuilderSchema<SVM, SVMV3, SVMV3.SVMParametersV3>
                 "ignore_const_cols",
                 "score_each_iteration",
                 "max_runtime_secs",
-                "user_points",
                 "max_iterations",
                 "user_points"
         };
+
+        @API(help="RDD used for training", required = false)
+        public String training_rdd;
 
         @API(help = "User-specified points", required = false)
         public KeyV3.FrameKeyV3 user_points;
