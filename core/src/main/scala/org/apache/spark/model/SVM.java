@@ -19,7 +19,9 @@ package org.apache.spark.model;
 
 import hex.ModelBuilder;
 import hex.ModelCategory;
+import hex.schemas.LabPoint;
 import org.apache.spark.SparkContext;
+import org.apache.spark.api.java.function.Function;
 import org.apache.spark.h2o.H2OContext;
 import org.apache.spark.mllib.classification.SVMWithSGD;
 import org.apache.spark.mllib.linalg.Vector;
@@ -119,15 +121,18 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
         private RDD<LabeledPoint> getTrainingData(SVMModel.SVMParameters parms) {
             return h2oContext.asLabPointRDD(new H2OFrame(parms.train()))
                     .toJavaRDD()
-                    .map(x -> {
-                        Vector v = Vectors.dense(
-                                (Double) x.Vector0().get(),
-                                (Double) x.Vector1().get(),
-                                (Double) x.Vector2().get(),
-                                (Double) x.Vector3().get(),
-                                (Double) x.Vector4().get()
-                        );
-                        return new LabeledPoint((Integer) x.Label().get(), v);
+                    .map(new Function<LabPoint, LabeledPoint>() {
+                        @Override
+                        public LabeledPoint call(LabPoint x) throws Exception {
+                            Vector v = Vectors.dense(
+                                    (Double) x.Vector0().get(),
+                                    (Double) x.Vector1().get(),
+                                    (Double) x.Vector2().get(),
+                                    (Double) x.Vector3().get(),
+                                    (Double) x.Vector4().get()
+                            );
+                            return new LabeledPoint((Integer) x.Label().get(), v);
+                        }
                     }).rdd();
         }
     }
