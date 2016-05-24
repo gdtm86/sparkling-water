@@ -20,8 +20,10 @@ package org.apache.spark.model;
 import hex.Model;
 import hex.ModelMetrics;
 import hex.ModelMetricsBinomial;
-import org.apache.spark.mllib.linalg.Vectors;
 import water.Key;
+import water.codegen.CodeGeneratorPipeline;
+import water.util.JCodeGen;
+import water.util.SBPrintStream;
 
 public class SVMModel extends Model<SVMModel, SVMModel.SVMParameters, SVMModel.SVMOutput> {
 
@@ -50,6 +52,7 @@ public class SVMModel extends Model<SVMModel, SVMModel.SVMParameters, SVMModel.S
         public double _convergence_tol = 0.001;
         public double _mini_batch_fraction = 1.0;
         public boolean _add_feature_scaling = false;
+        public double threshold = 0.0;
     }
 
     public static class SVMOutput extends Model.Output {
@@ -75,10 +78,33 @@ public class SVMModel extends Model<SVMModel, SVMModel.SVMParameters, SVMModel.S
 
     @Override
     protected double[] score0(double data[/*ncols*/], double preds[/*nclasses+1*/]) {
-        org.apache.spark.mllib.classification.SVMModel model =
-                new org.apache.spark.mllib.classification.SVMModel(Vectors.dense(_output.weights), _output.interceptor);
-        // TODO should this return only the predicted class or two values {X, Y} for 0 and 1?
-        preds[0] = model.predict(Vectors.dense(data));
+        java.util.Arrays.fill(preds,0);
+        preds[0] = _output.interceptor;
+        final double threshold = _parms.threshold;
+        for(int i = 0; i < data.length; i++) {
+            preds[0] += (data[i] * _output.weights[i]);
+        }
+        // TODO should this return only the predicted class in preds[0] or should I somehow calculate pred[1] and preds[2]?
+        preds[0] = Double.isNaN(threshold) ? preds[0] : (preds[0] > threshold ? 1 : 0);
         return preds;
+    }
+
+    @Override protected SBPrintStream toJavaInit(SBPrintStream sb, CodeGeneratorPipeline fileCtx) {
+        sb = super.toJavaInit(sb, fileCtx);
+        sb.ip("public boolean isSupervised() { return " + isSupervised() + "; }").nl();
+        JCodeGen.toStaticVar(sb, "WEIGHTS", _output.weights, "Weights.");
+        return sb;
+    }
+    @Override protected void toJavaPredictBody(SBPrintStream bodySb,
+                                               CodeGeneratorPipeline classCtx,
+                                               CodeGeneratorPipeline fileCtx,
+                                               final boolean verboseCode) {
+        /**/bodySb.i().p("java.util.Arrays.fill(preds,0);").nl();
+        /**/bodySb.i().p("preds[0] = ").p(_output.interceptor).p(";").nl();
+        /**/bodySb.i().p("final double threshold = ").p(_parms.threshold).p(";").nl();
+        /**/bodySb.i().p("for(int i = 0; i < data.length; i++) {").nl();
+        /*  */bodySb.i(1).p("preds[0] += (data[i] * WEIGHTS[i]);").nl();
+        /**/bodySb.i().p("}").nl();
+        /**/bodySb.i().p("preds[0] = Double.isNaN(threshold) ? preds[0] : (preds[0] > threshold ? 1 : 0);").nl();
     }
 }

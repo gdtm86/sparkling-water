@@ -41,6 +41,7 @@ public class SVMV3 extends ModelBuilderSchema<SVM, SVMV3, SVMV3.SVMParametersV3>
                 "convergence_tol",
                 "mini_batch_fraction",
                 "add_feature_scaling",
+                "threshold",
 
                 "ignored_columns",
                 "ignore_const_cols"
@@ -63,6 +64,11 @@ public class SVMV3 extends ModelBuilderSchema<SVM, SVMV3, SVMV3.SVMParametersV3>
 
         @API(help="Add feature scaling", direction=API.Direction.INPUT)
         public boolean add_feature_scaling = false;
+
+        // TODO what exactly does INOUT do?? Should this be only INPUT?
+        @API(help="Set threshold that separates positive predictions from negative ones. NaN for raw prediction.", direction=API.Direction.INOUT)
+        public double threshold = 0.0;
+
     }
 
 }

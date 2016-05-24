@@ -56,6 +56,7 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
     public SVM(SVMModel.SVMParameters parms) {
         super(parms);
         init(false);
+        _nclass = Double.isNaN(_parms.threshold) ? 1 : 2;
     }
 
     @Override
@@ -66,7 +67,8 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
     @Override
     public ModelCategory[] can_build() {
         return new ModelCategory[]{
-                ModelCategory.Binomial
+                ModelCategory.Binomial,
+                ModelCategory.Regression
         };
     }
 
