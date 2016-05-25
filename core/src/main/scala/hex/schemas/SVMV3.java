@@ -19,8 +19,13 @@ package hex.schemas;
 
 import org.apache.spark.model.SVM;
 import org.apache.spark.model.SVMModel;
+import water.DKV;
+import water.Key;
+import water.Value;
 import water.api.API;
+import water.api.KeyV3;
 import water.api.ModelParametersSchema;
+import water.fvec.Frame;
 
 
 // Seems like this has to be in Java since H2O's frameworks uses reflection's getFields...
@@ -32,6 +37,7 @@ public class SVMV3 extends ModelBuilderSchema<SVM, SVMV3, SVMV3.SVMParametersV3>
                 "model_id",
                 "training_frame",
                 "response_column",
+                "initial_weights_frame",
                 "validation_frame",
                 "nfolds",
                 "add_intercept",
@@ -42,6 +48,8 @@ public class SVMV3 extends ModelBuilderSchema<SVM, SVMV3, SVMV3.SVMParametersV3>
                 "mini_batch_fraction",
                 "add_feature_scaling",
                 "threshold",
+                "updater",
+                "gradient",
 
                 "ignored_columns",
                 "ignore_const_cols"
@@ -68,6 +76,39 @@ public class SVMV3 extends ModelBuilderSchema<SVM, SVMV3, SVMV3.SVMParametersV3>
         // TODO what exactly does INOUT do?? Should this be only INPUT?
         @API(help="Set threshold that separates positive predictions from negative ones. NaN for raw prediction.", direction=API.Direction.INOUT)
         public double threshold = 0.0;
+
+        @API(help="Set the updater for SGD.", direction=API.Direction.INPUT, values = {"L2", "L1", "Simple"}, required = true)
+        public SVM.Updater updater = SVM.Updater.L2;
+
+        @API(help="Set the gradient computation type for SGD.", direction=API.Direction.INPUT, values = {"Hinge", "LeastSquares", "Logistic"}, required = true)
+        public SVM.Gradient gradient = SVM.Gradient.Hinge;
+
+        @API(help="Initial model weights.", direction=API.Direction.INOUT)
+        public KeyV3.FrameKeyV3 initial_weights_frame;
+
+        @Override
+        public SVMParametersV3 fillFromImpl(SVMModel.SVMParameters impl) {
+            super.fillFromImpl(impl);
+
+            if (null != impl._initial_weights) {
+                Value v = DKV.get(impl._initial_weights);
+                if (null != v) {
+                    initial_weights_frame = new KeyV3.FrameKeyV3(((Frame) v.get())._key);
+                }
+            }
+
+            return this;
+        }
+
+        @Override
+        public SVMModel.SVMParameters fillImpl(SVMModel.SVMParameters impl) {
+            super.fillImpl(impl);
+
+            impl._initial_weights = (null == this.initial_weights_frame ?
+                    null :
+                    Key.<Frame>make(this.initial_weights_frame.name));
+            return impl;
+        }
 
     }
 

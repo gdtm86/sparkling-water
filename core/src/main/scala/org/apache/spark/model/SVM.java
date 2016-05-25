@@ -25,6 +25,7 @@ import org.apache.spark.h2o.H2OContext;
 import org.apache.spark.mllib.classification.SVMWithSGD;
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
+import org.apache.spark.mllib.optimization.*;
 import org.apache.spark.mllib.regression.LabeledPoint;
 import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.DataFrame;
@@ -33,6 +34,7 @@ import org.apache.spark.sql.SQLContext;
 import water.Job;
 import water.Scope;
 import water.fvec.H2OFrame;
+import water.fvec.Vec;
 import water.util.Log;
 
 /**
@@ -40,6 +42,39 @@ import water.util.Log;
  * Maybe if I don't need them all I can rewrite this in Scala?
  */
 public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel.SVMOutput> {
+
+    public enum Gradient {
+        Hinge(new HingeGradient()),
+        LeastSquares(new LeastSquaresGradient()),
+        Logistic(new LogisticGradient());
+
+        private org.apache.spark.mllib.optimization.Gradient sparkGradient;
+
+        Gradient(org.apache.spark.mllib.optimization.Gradient sparkGradient) {
+            this.sparkGradient = sparkGradient;
+        }
+
+        public org.apache.spark.mllib.optimization.Gradient get() {
+            return sparkGradient;
+        }
+    }
+
+    public enum Updater {
+        L2(new SquaredL2Updater()),
+        L1(new L1Updater()),
+        Simple(new SimpleUpdater());
+
+        private org.apache.spark.mllib.optimization.Updater sparkUpdater;
+
+        Updater(org.apache.spark.mllib.optimization.Updater sparkUpdater) {
+            this.sparkUpdater = sparkUpdater;
+        }
+
+        public org.apache.spark.mllib.optimization.Updater get() {
+            return sparkUpdater;
+        }
+
+    }
 
     private final SparkContext sc = H2OContext.getSparkContext();
     private final H2OContext h2oContext = H2OContext.getOrCreate(sc);
@@ -56,7 +91,7 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
     public SVM(SVMModel.SVMParameters parms) {
         super(parms);
         init(false);
-        _nclass = Double.isNaN(_parms.threshold) ? 1 : 2;
+        _nclass = Double.isNaN(_parms._threshold) ? 1 : 2;
     }
 
     @Override
@@ -87,6 +122,7 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
     }
 
     private class SVMDriver extends Driver {
+
         @Override
         public void compute2() {
             SVMModel model = null;
@@ -112,15 +148,16 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
                 svm.optimizer().setRegParam(_parms._reg_param);
                 svm.optimizer().setMiniBatchFraction(_parms._mini_batch_fraction);
                 svm.optimizer().setConvergenceTol(_parms._convergence_tol);
-                /* TODO add to GUI
-                svm.optimizer().setGradient();
-                svm.optimizer().setUpdater();*/
+                svm.optimizer().setGradient(_parms._gradient.get());
+                svm.optimizer().setUpdater(_parms._updater.get());
 
-//                if(null == _parms._initial_weights) {
-                org.apache.spark.mllib.classification.SVMModel trainedModel = svm.run(training);
-//                } else {
-//                    svm.run(training, initialWeights(_parms._initial_weights));
-//                }
+                org.apache.spark.mllib.classification.SVMModel trainedModel;
+                if (null == _parms._initial_weights) {
+                    trainedModel = svm.run(training);
+                } else {
+                    // TODO check if anyVec is null in param validation
+                    trainedModel = svm.run(training, vec2vec(_parms.initialWeights().vecs()));
+                }
                 training.unpersist(false);
 
                 model._output.weights = trainedModel.weights().toArray();
@@ -139,12 +176,23 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
             tryComplete();
         }
 
+        // TODO a better way to do this?
+        private Vector vec2vec(Vec[] vals) {
+            int chunks = vals.length;
+            double[] weights = new double[chunks];
+            for(int i = 0; i < chunks; i++) {
+                weights[i] = vals[i].at(0);
+            }
+            return Vectors.dense(weights);
+        }
+
         private RDD<LabeledPoint> getTrainingData(SVMModel.SVMParameters parms) {
             DataFrame df = h2oContext.createH2OSchemaRDD(new H2OFrame(parms.train()), SVM.this.sqlContext);
             return df.toJavaRDD().map(new RowToVector()).rdd();
         }
 
     }
+
     private static class RowToVector implements Function<Row, LabeledPoint> {
         @Override
         public LabeledPoint call(Row r) throws Exception {

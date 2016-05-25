@@ -22,6 +22,7 @@ import hex.ModelMetrics;
 import hex.ModelMetricsBinomial;
 import water.Key;
 import water.codegen.CodeGeneratorPipeline;
+import water.fvec.Frame;
 import water.util.JCodeGen;
 import water.util.SBPrintStream;
 
@@ -45,6 +46,8 @@ public class SVMModel extends Model<SVMModel, SVMModel.SVMParameters, SVMModel.S
             return _max_iterations;
         }
 
+        public final Frame initialWeights() { return null == _initial_weights ? null : _initial_weights.get(); }
+
         public int _max_iterations = 1000; // Max iterations
         public boolean _add_intercept = false;
         public double _step_size = 1.0;
@@ -52,7 +55,10 @@ public class SVMModel extends Model<SVMModel, SVMModel.SVMParameters, SVMModel.S
         public double _convergence_tol = 0.001;
         public double _mini_batch_fraction = 1.0;
         public boolean _add_feature_scaling = false;
-        public double threshold = 0.0;
+        public double _threshold = 0.0;
+        public SVM.Updater _updater = SVM.Updater.L2;
+        public SVM.Gradient _gradient = SVM.Gradient.Hinge;
+        public Key<Frame> _initial_weights;
     }
 
     public static class SVMOutput extends Model.Output {
@@ -80,7 +86,7 @@ public class SVMModel extends Model<SVMModel, SVMModel.SVMParameters, SVMModel.S
     protected double[] score0(double data[/*ncols*/], double preds[/*nclasses+1*/]) {
         java.util.Arrays.fill(preds,0);
         preds[0] = _output.interceptor;
-        final double threshold = _parms.threshold;
+        final double threshold = _parms._threshold;
         for(int i = 0; i < data.length; i++) {
             preds[0] += (data[i] * _output.weights[i]);
         }
@@ -101,7 +107,7 @@ public class SVMModel extends Model<SVMModel, SVMModel.SVMParameters, SVMModel.S
                                                final boolean verboseCode) {
         /**/bodySb.i().p("java.util.Arrays.fill(preds,0);").nl();
         /**/bodySb.i().p("preds[0] = ").p(_output.interceptor).p(";").nl();
-        /**/bodySb.i().p("final double threshold = ").p(_parms.threshold).p(";").nl();
+        /**/bodySb.i().p("final double threshold = ").p(_parms._threshold).p(";").nl();
         /**/bodySb.i().p("for(int i = 0; i < data.length; i++) {").nl();
         /*  */bodySb.i(1).p("preds[0] += (data[i] * WEIGHTS[i]);").nl();
         /**/bodySb.i().p("}").nl();
