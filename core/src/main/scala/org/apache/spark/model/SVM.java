@@ -19,6 +19,7 @@ package org.apache.spark.model;
 
 import hex.ModelBuilder;
 import hex.ModelCategory;
+import hex.kmeans.KMeansModel;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.h2o.H2OContext;
@@ -83,12 +84,13 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
 
     public SVM(boolean startup_once) {
         super(new SVMModel.SVMParameters(), startup_once);
+        _nclass = Double.isNaN(_parms._threshold) ? 1 : 2;
     }
-
-    public SVM(Job<?> job) {
-        super(new SVMModel.SVMParameters(), job);
+    public SVM(SVMModel.SVMParameters parms, Job job) {
+        super(parms, job);
+        init(false);
+        _nclass = Double.isNaN(_parms._threshold) ? 1 : 2;
     }
-
     public SVM(SVMModel.SVMParameters parms) {
         super(parms);
         init(false);
@@ -149,7 +151,11 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
                 model = new SVMModel(_job._result, _parms, new SVMModel.SVMOutput(SVM.this));
                 model.delete_and_lock(_job);
 
-                RDD<LabeledPoint> training = getTrainingData(_parms);
+                RDD<LabeledPoint> training = getTrainingData(
+                        _train,
+                        _parms._response_column,
+                        model._output.nfeatures()
+                );
                 training.cache();
 
                 SVMWithSGD svm = new SVMWithSGD();
@@ -200,19 +206,31 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
             return Vectors.dense(weights);
         }
 
-        private RDD<LabeledPoint> getTrainingData(SVMModel.SVMParameters parms) {
-            DataFrame df = h2oContext.createH2OSchemaRDD(new H2OFrame(parms.train()), SVM.this.sqlContext);
-            return df.toJavaRDD().map(new RowToVector()).rdd();
+        private RDD<LabeledPoint> getTrainingData(Frame parms, String _response_column, int nfeatures) {
+            DataFrame df = h2oContext.createH2OSchemaRDD(new H2OFrame(parms), SVM.this.sqlContext);
+            return df.toJavaRDD().map(new RowToVector(_response_column, nfeatures)).rdd();
         }
 
     }
 
     private static class RowToVector implements Function<Row, LabeledPoint> {
+
+        private final String respCol;
+        private final int nfeatures;
+
+        private RowToVector(String resp, int nfeatures) {
+            this.respCol = resp;
+            this.nfeatures = nfeatures;
+        }
+
         @Override
         public LabeledPoint call(Row r) throws Exception {
             // assuming the response was moved by ModelBuilder#init()
-            Vector v = Vectors.dense(r.getDouble(1), r.toSeq().drop(2).toSeq());
-            return new LabeledPoint(r.getByte(0), v);
+            double[] features = new double[nfeatures];
+            for(int i = 0; i < nfeatures; i++) {
+                features[i] = r.getDouble(i);
+            }
+            return new LabeledPoint(r.<Byte>getAs(respCol), Vectors.dense(features));
         }
     }
 }
