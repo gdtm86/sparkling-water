@@ -36,6 +36,7 @@ public class SVMV3 extends ModelBuilderSchema<SVM, SVMV3, SVMV3.SVMParametersV3>
         public static String[] fields = new String[]{
                 "model_id",
                 "training_frame",
+                // TODO don't want this to be griddable any way to override the value from Model.Parameters?
                 "response_column",
                 "initial_weights_frame",
                 "validation_frame",

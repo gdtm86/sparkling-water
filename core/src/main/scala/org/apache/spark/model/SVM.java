@@ -33,6 +33,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
 import water.Job;
 import water.Scope;
+import water.fvec.Frame;
 import water.fvec.H2OFrame;
 import water.fvec.Vec;
 import water.util.Log;
@@ -115,11 +116,24 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
     @Override
     public void init(boolean expensive) {
         super.init(expensive);
-        if (_parms._max_iterations < 1 || _parms._max_iterations > 9999999) {
-            error("max_iterations", "must be between 1 and 10 million");
+        if (_parms._max_iterations < 0 || _parms._max_iterations > 1e6)
+            error("_max_iterations", " max_iterations must be between 0 and 1e6");
+        if (_train == null) return;
+        if (null != _parms._initial_weights) {
+            Frame user_points = _parms._initial_weights.get();
+            // -1 because of response column
+            if (user_points.numCols() != _train.numCols() - numSpecialCols()) {
+                error("_user_y", "The user-specified points must have the same number of columns (" + (_train.numCols() - numSpecialCols()) + ") as the training observations");
+            }
         }
-        // TODO validate other params. Optmizer name etc?
     }
+
+    @Override
+    public int numSpecialCols() { return (hasOffsetCol() ? 1 : 0) +
+            (hasWeightCol() ? 1 : 0) +
+            (hasFoldCol() ? 1 : 0) +
+            // response column
+            1; }
 
     private class SVMDriver extends Driver {
 
@@ -180,7 +194,7 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
         private Vector vec2vec(Vec[] vals) {
             int chunks = vals.length;
             double[] weights = new double[chunks];
-            for(int i = 0; i < chunks; i++) {
+            for (int i = 0; i < chunks; i++) {
                 weights[i] = vals[i].at(0);
             }
             return Vectors.dense(weights);
