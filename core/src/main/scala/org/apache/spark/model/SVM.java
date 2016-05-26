@@ -19,7 +19,7 @@ package org.apache.spark.model;
 
 import hex.ModelBuilder;
 import hex.ModelCategory;
-import hex.kmeans.KMeansModel;
+import hex.ModelMetrics;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.h2o.H2OContext;
@@ -148,7 +148,7 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
                 init(true);
 
                 // The model to be built
-                model = new SVMModel(_job._result, _parms, new SVMModel.SVMOutput(SVM.this));
+                model = new SVMModel(dest(), _parms, new SVMModel.SVMOutput(SVM.this));
                 model.delete_and_lock(_job);
 
                 RDD<LabeledPoint> training = getTrainingData(
@@ -185,13 +185,17 @@ public class SVM extends ModelBuilder<SVMModel, SVMModel.SVMParameters, SVMModel
                 model.update(_job); // Update model in K/V store
                 _job.update(model._parms._max_iterations); // TODO how to update from Spark hmmm?
 
-                StringBuilder sb = new StringBuilder();
-                sb.append("Example: iter: ").append(model._output._iterations);
-                Log.info(sb);
+                if (_valid != null) {
+                    model.score(_parms.valid()).delete();
+                    model._output._validation_metrics = ModelMetrics.getFromDKV(model,_parms.valid());
+                    model.update(_job);
+                }
+
+                Log.info(model._output._model_summary);
             } finally {
                 if (model != null) model.unlock(_job);
                 _parms.read_unlock_frames(_job);
-                Scope.exit(model == null ? null : model._key);
+                Scope.exit();
             }
             tryComplete();
         }
