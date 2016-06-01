@@ -29,6 +29,8 @@ import water.fvec.Frame;
 
 
 // Seems like this has to be in Java since H2O's frameworks uses reflection's getFields...
+// TODO I probably could mix Java and Scala here, leave SVMParametersV3 with fields as Java
+// and then make the same Scala class SVMParametersV3 which extends it but not sure if it's worth it...
 public class SVMV3 extends ModelBuilderSchema<SVM, SVMV3, SVMV3.SVMParametersV3> {
 
     public static final class SVMParametersV3 extends
