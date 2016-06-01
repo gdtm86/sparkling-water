@@ -20,6 +20,7 @@ package org.apache.spark.model;
 import hex.Model;
 import hex.ModelMetrics;
 import hex.ModelMetricsBinomial;
+import org.apache.spark.mllib.optimization.*;
 import water.Key;
 import water.codegen.CodeGeneratorPipeline;
 import water.fvec.Frame;
@@ -27,6 +28,38 @@ import water.util.JCodeGen;
 import water.util.SBPrintStream;
 
 public class SVMModel extends Model<SVMModel, SVMModel.SVMParameters, SVMModel.SVMOutput> {
+
+    public enum Gradient {
+        Hinge(new HingeGradient()),
+        LeastSquares(new LeastSquaresGradient()),
+        Logistic(new LogisticGradient());
+
+        private org.apache.spark.mllib.optimization.Gradient sparkGradient;
+
+        Gradient(org.apache.spark.mllib.optimization.Gradient sparkGradient) {
+            this.sparkGradient = sparkGradient;
+        }
+
+        public org.apache.spark.mllib.optimization.Gradient get() {
+            return sparkGradient;
+        }
+    }
+
+    public enum Updater {
+        L2(new SquaredL2Updater()),
+        L1(new L1Updater()),
+        Simple(new SimpleUpdater());
+
+        private org.apache.spark.mllib.optimization.Updater sparkUpdater;
+
+        Updater(org.apache.spark.mllib.optimization.Updater sparkUpdater) {
+            this.sparkUpdater = sparkUpdater;
+        }
+
+        public org.apache.spark.mllib.optimization.Updater get() {
+            return sparkUpdater;
+        }
+    }
 
     public static class SVMParameters extends Model.Parameters {
         public String algoName() {
@@ -54,16 +87,13 @@ public class SVMModel extends Model<SVMModel, SVMModel.SVMParameters, SVMModel.S
         public double _reg_param = 0.01;
         public double _convergence_tol = 0.001;
         public double _mini_batch_fraction = 1.0;
-        public boolean _add_feature_scaling = false;
         public double _threshold = 0.0;
-        public SVM.Updater _updater = SVM.Updater.L2;
-        public SVM.Gradient _gradient = SVM.Gradient.Hinge;
+        public Updater _updater = Updater.L2;
+        public Gradient _gradient = Gradient.Hinge;
         public Key<Frame> _initial_weights;
     }
 
     public static class SVMOutput extends Model.Output {
-        // Iterations executed
-        public int _iterations;
         public double interceptor;
         public double[] weights;
 

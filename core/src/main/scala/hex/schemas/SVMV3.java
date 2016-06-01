@@ -49,7 +49,6 @@ public class SVMV3 extends ModelBuilderSchema<SVM, SVMV3, SVMV3.SVMParametersV3>
                 "reg_param",
                 "convergence_tol",
                 "mini_batch_fraction",
-                "add_feature_scaling",
                 "threshold",
                 "updater",
                 "gradient",
@@ -73,18 +72,15 @@ public class SVMV3 extends ModelBuilderSchema<SVM, SVMV3, SVMV3.SVMParametersV3>
         @API(help="Set mini batch fraction", direction=API.Direction.INPUT)
         public double mini_batch_fraction = 1.0;
 
-        @API(help="Add feature scaling", direction=API.Direction.INPUT)
-        public boolean add_feature_scaling = false;
-
         // TODO what exactly does INOUT do?? Should this be only INPUT?
         @API(help="Set threshold that separates positive predictions from negative ones. NaN for raw prediction.", direction=API.Direction.INOUT)
         public double threshold = 0.0;
 
         @API(help="Set the updater for SGD.", direction=API.Direction.INPUT, values = {"L2", "L1", "Simple"}, required = true)
-        public SVM.Updater updater = SVM.Updater.L2;
+        public SVMModel.Updater updater = SVMModel.Updater.L2;
 
         @API(help="Set the gradient computation type for SGD.", direction=API.Direction.INPUT, values = {"Hinge", "LeastSquares", "Logistic"}, required = true)
-        public SVM.Gradient gradient = SVM.Gradient.Hinge;
+        public SVMModel.Gradient gradient = SVMModel.Gradient.Hinge;
 
         @API(help="Initial model weights.", direction=API.Direction.INOUT)
         public KeyV3.FrameKeyV3 initial_weights_frame;
