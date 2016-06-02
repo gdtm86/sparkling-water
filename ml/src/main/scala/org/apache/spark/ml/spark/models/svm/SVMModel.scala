@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.model
+package org.apache.spark.ml.spark.models.svm
 
 import hex.{Model, ModelMetricsBinomial}
 import water.codegen.CodeGeneratorPipeline
@@ -27,7 +27,7 @@ object SVMModel {
   class SVMParameters extends Model.Parameters {
     def algoName: String = "SVM"
 
-    def fullName: String = "Support Vector Machine"
+    def fullName: String = "Support Vector Machine(*)"
 
     def javaName: String = classOf[SVMModel].getName
 
@@ -56,7 +56,7 @@ object SVMModel {
 
 }
 
-class SVMModel private[model](val selfKey: Key[_ <: Keyed[_ <: Keyed[_ <: AnyRef]]],
+class SVMModel private[svm](val selfKey: Key[_ <: Keyed[_ <: Keyed[_ <: AnyRef]]],
                               val parms: SVMModel.SVMParameters,
                               val output: SVMModel.SVMOutput)
   extends Model[SVMModel, SVMModel.SVMParameters, SVMModel.SVMOutput](selfKey, parms, output) {

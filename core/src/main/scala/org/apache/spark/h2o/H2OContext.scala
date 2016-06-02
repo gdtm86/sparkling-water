@@ -24,7 +24,6 @@ import org.apache.spark.api.java.{JavaRDD, JavaSparkContext}
 import org.apache.spark.h2o.H2OContextUtils._
 import org.apache.spark.h2o.H2OTypeUtils._
 import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.model.SVM
 import org.apache.spark.rdd.{H2ORDD, H2OSchemaRDD}
 import org.apache.spark.scheduler.{SparkListener, SparkListenerExecutorAdded}
 import org.apache.spark.sql.types._
@@ -802,36 +801,9 @@ object H2OContext extends Logging {
     registerDataFramesEndp(sc, h2oContext)
     registerH2OFramesEndp(sc, h2oContext)
     registerRDDsEndp(sc, h2oContext)
-    registerModels(sc, h2oContext)
   }
 
-  private def registerModels(sc: SparkContext, h2oContext: H2OContext) = {
 
-    val models = Seq(new SVM(true))
-
-    // TODO delicious copy-pasta from h2o-3 hex.api.Register, maybe possible to refactor that part?
-    for (algo <- models) {
-      val base: String = algo.getClass.getSimpleName
-      val lbase: String = base.toLowerCase
-      val bh_clz: Class[_] = classOf[ModelBuilderHandler[_, _, _]]
-      // TODO shouldn't this be hardcoded somewhere in one place in h2o-3?? can't find
-      val version: Int = 3
-      H2O.registerPOST("/" + version + "/ModelBuilders/" + lbase, bh_clz, "train", "Train a " + base + " model.")
-      H2O.registerPOST(
-        "/" + version + "/ModelBuilders/" + lbase + "/parameters",
-        bh_clz,
-        "validate_parameters",
-        "Validate a set of " + base + " model builder parameters."
-      )
-      // Grid search is experimental feature
-      H2O.registerPOST(
-        "/99/Grid/" + lbase,
-        classOf[GridSearchHandler[_,_,_,_]],
-        "train",
-        "Run grid search for " + base + " model."
-      )
-    }
-  }
 
   private def registerH2OFramesEndp(sc: SparkContext, h2oContext: H2OContext) = {
 

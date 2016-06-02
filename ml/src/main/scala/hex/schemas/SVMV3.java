@@ -17,10 +17,10 @@
 
 package hex.schemas;
 
-import org.apache.spark.model.Gradient;
-import org.apache.spark.model.SVM;
-import org.apache.spark.model.SVMModel;
-import org.apache.spark.model.Updater;
+import org.apache.spark.ml.spark.models.svm.Gradient;
+import org.apache.spark.ml.spark.models.svm.SVM;
+import org.apache.spark.ml.spark.models.svm.SVMModel;
+import org.apache.spark.ml.spark.models.svm.Updater;
 import water.DKV;
 import water.Key;
 import water.Value;

@@ -32,8 +32,9 @@ dependencies {
   // Sparkling Water REPL
   compile(project(':sparkling-water-repl'))
 
-  // Sparkling Water genmodel utils
-  compile(project(':sparkling-water-genmodel'))
+  // Sparkling Water ML
+  // TODO this should not be here, put so the H2O reflection finds the Register class in ML
+  compile(project(':sparkling-water-ml'))
 
   // Add joda optional convert library which is required in Scala environment
   compile "org.joda:joda-convert:1.7"

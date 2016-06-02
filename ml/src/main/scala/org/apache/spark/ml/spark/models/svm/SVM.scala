@@ -15,23 +15,20 @@
  * limitations under the License.
  */
 
-package org.apache.spark.model
+package org.apache.spark.ml.spark.models.svm
 
 import hex.{ModelBuilder, ModelCategory, ModelMetricsBinomial}
 import org.apache.spark.h2o.H2OContext
+import org.apache.spark.ml.spark.models.svm.SVMModel.{SVMOutput, SVMParameters}
 import org.apache.spark.mllib.classification.SVMWithSGD
-import org.apache.spark.mllib.linalg.Vector
-import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.linalg.{Vector, Vectors}
 import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.model.SVMModel.{SVMOutput, SVMParameters}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SQLContext
 import water.Scope
-import water.fvec.Frame
-import water.fvec.H2OFrame
-import water.fvec.Vec
-import water.util.Log
 import water.app.ModelMetricsSupport
+import water.fvec.{Frame, H2OFrame, Vec}
+import water.util.Log
 
 class SVM(val startup_once: Boolean) extends ModelBuilder[SVMModel, SVMParameters, SVMOutput](new SVMModel.SVMParameters(), startup_once) {
 

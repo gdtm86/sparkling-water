@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package water.api.models
+package hex.schemas
 
-import hex.schemas.SVMV3.SVMParametersV3
-import org.apache.spark.model.SVMModel
-import water.api.models.SVMModelV3.SVMModelOutputV3
+import SVMV3.SVMParametersV3
+import hex.schemas.SVMModelV3.SVMModelOutputV3
+import org.apache.spark.ml.spark.models.svm.SVMModel
 import water.api.{API, ModelOutputSchema, ModelSchema}
 
 class SVMModelV3 extends ModelSchema[SVMModel,
