@@ -19,7 +19,6 @@ package org.apache.spark.model
 
 import org.apache.spark.mllib.feature.IDFModel
 import org.apache.spark.mllib.linalg.{DenseVector, SparseVector}
-import water.codegen.CodeGeneratorPipeline
 import water.util.SBPrintStream
 
 class SparklingIDFModel(val sparkModel: IDFModel) extends SparklingModel {
@@ -27,8 +26,6 @@ class SparklingIDFModel(val sparkModel: IDFModel) extends SparklingModel {
   val name = "SparklingIDFModel"
 
   def toJava(sb: SBPrintStream): SBPrintStream = {
-
-    val fileCtx: CodeGeneratorPipeline = new CodeGeneratorPipeline
 
     /**/ sb.p("import water.*;").nl.nl
     /**/
@@ -61,7 +58,6 @@ class SparklingIDFModel(val sparkModel: IDFModel) extends SparklingModel {
     /*    */ sb.i(2).p("return v;").nl
     /*  */ sb.i(1).p("}").nl
     /**/ sb.p("}").nl
-    fileCtx.generate(sb)
     sb
   }
 

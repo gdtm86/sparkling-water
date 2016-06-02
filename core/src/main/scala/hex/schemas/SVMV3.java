@@ -17,8 +17,10 @@
 
 package hex.schemas;
 
+import org.apache.spark.model.Gradient;
 import org.apache.spark.model.SVM;
 import org.apache.spark.model.SVMModel;
+import org.apache.spark.model.Updater;
 import water.DKV;
 import water.Key;
 import water.Value;
@@ -77,10 +79,10 @@ public class SVMV3 extends ModelBuilderSchema<SVM, SVMV3, SVMV3.SVMParametersV3>
         public double threshold = 0.0;
 
         @API(help="Set the updater for SGD.", direction=API.Direction.INPUT, values = {"L2", "L1", "Simple"}, required = true)
-        public SVMModel.Updater updater = SVMModel.Updater.L2;
+        public Updater updater = Updater.L2;
 
         @API(help="Set the gradient computation type for SGD.", direction=API.Direction.INPUT, values = {"Hinge", "LeastSquares", "Logistic"}, required = true)
-        public SVMModel.Gradient gradient = SVMModel.Gradient.Hinge;
+        public Gradient gradient = Gradient.Hinge;
 
         @API(help="Initial model weights.", direction=API.Direction.INOUT)
         public KeyV3.FrameKeyV3 initial_weights_frame;
@@ -89,8 +91,8 @@ public class SVMV3 extends ModelBuilderSchema<SVM, SVMV3, SVMV3.SVMParametersV3>
         public SVMParametersV3 fillFromImpl(SVMModel.SVMParameters impl) {
             super.fillFromImpl(impl);
 
-            if (null != impl._initial_weights) {
-                Value v = DKV.get(impl._initial_weights);
+            if (null != impl._initial_weights()) {
+                Value v = DKV.get(impl._initial_weights());
                 if (null != v) {
                     initial_weights_frame = new KeyV3.FrameKeyV3(((Frame) v.get())._key);
                 }
@@ -102,10 +104,9 @@ public class SVMV3 extends ModelBuilderSchema<SVM, SVMV3, SVMV3.SVMParametersV3>
         @Override
         public SVMModel.SVMParameters fillImpl(SVMModel.SVMParameters impl) {
             super.fillImpl(impl);
-
-            impl._initial_weights = (null == this.initial_weights_frame ?
-                    null :
-                    Key.<Frame>make(this.initial_weights_frame.name));
+            impl._initial_weights_$eq(
+                    null == this.initial_weights_frame ? null : Key.<Frame>make(this.initial_weights_frame.name)
+            );
             return impl;
         }
 

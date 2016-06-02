@@ -18,15 +18,12 @@
 package org.apache.spark.model
 
 import org.apache.spark.mllib.feature.HashingTF
-import water.codegen.CodeGeneratorPipeline
 import water.util.SBPrintStream
 
 class SparklingTFModel(val sparkModel: HashingTF,
                        val name: String = "SparklingTFModel") extends SparklingModel {
 
   def toJava(sb: SBPrintStream): SBPrintStream = {
-
-    val fileCtx: CodeGeneratorPipeline = new CodeGeneratorPipeline
 
     /**/ sb.p("import java.util.HashMap;").nl
     /**/ sb.p("import java.util.Map;").nl
@@ -51,7 +48,6 @@ class SparklingTFModel(val sparkModel: HashingTF,
     /*    */ sb.i(2).p("return rawMod + (rawMod < 0 ? mod : 0);").nl
     /*  */ sb.i(1).p("}").nl
     /**/ sb.p("}").nl
-    fileCtx.generate(sb)
     sb
   }
 

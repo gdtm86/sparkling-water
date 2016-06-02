@@ -23,6 +23,7 @@ import org.apache.spark.mllib.classification.SVMWithSGD
 import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.model.SVMModel.{SVMOutput, SVMParameters}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SQLContext
 import water.Scope
@@ -32,14 +33,13 @@ import water.fvec.Vec
 import water.util.Log
 import water.app.ModelMetricsSupport
 
-class SVM(val startup_once: Boolean) extends
-  ModelBuilder[SVMModel, SVMModel.SVMParameters, SVMModel.SVMOutput](new SVMModel.SVMParameters(), startup_once) {
+class SVM(val startup_once: Boolean) extends ModelBuilder[SVMModel, SVMParameters, SVMOutput](new SVMModel.SVMParameters(), startup_once) {
 
   _nclass = if (_parms._threshold.isNaN) 1 else 2
 
-  private val sc = H2OContext.getSparkContext()
-  private val h2oContext = H2OContext.getOrCreate(sc)
-  private implicit val sqlContext = SQLContext.getOrCreate(sc)
+  @transient private val sc = H2OContext.getSparkContext()
+  @transient private val h2oContext = H2OContext.getOrCreate(sc)
+  @transient private implicit val sqlContext = SQLContext.getOrCreate(sc)
 
   override protected def trainModelImpl(): Driver = new SVMDriver()
 
